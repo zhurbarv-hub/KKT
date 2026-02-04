@@ -9,8 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends     gcc     lib
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code (web/app is the main backend)
-COPY web/app/ ./app/
+# Copy ALL application code
+COPY backend/ ./backend/
+COPY web/app/ ./web/app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
 
@@ -23,4 +24,4 @@ EXPOSE 8000
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3     CMD curl -f http://localhost:8000/api/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "web.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

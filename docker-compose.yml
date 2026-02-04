@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: kkt-postgres
@@ -12,7 +9,7 @@ services:
       POSTGRES_DB: ${DB_NAME:-kkt_production}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backups:/backups
+      - /home/kktapp/backups:/backups
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-kkt_user} -d ${DB_NAME:-kkt_production}"]
       interval: 10s
@@ -21,7 +18,6 @@ services:
     networks:
       - kkt-network
 
-  # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: kkt-redis
@@ -37,11 +33,8 @@ services:
     networks:
       - kkt-network
 
-  # Backend API
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
+    image: ghcr.io/zhurbarv-hub/kkt-backend:latest
     container_name: kkt-backend
     restart: unless-stopped
     environment:
@@ -49,24 +42,19 @@ services:
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       ENVIRONMENT: production
+      IS_MASTER: ${IS_MASTER:-false}
+    ports:
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     networks:
       - kkt-network
 
-  # Telegram Bot
   bot:
-    build:
-      context: .
-      dockerfile: Dockerfile.bot
+    image: ghcr.io/zhurbarv-hub/kkt-bot:latest
     container_name: kkt-bot
     restart: unless-stopped
     environment:
@@ -74,6 +62,7 @@ services:
       REDIS_URL: redis://redis:6379/1
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       ADMIN_TELEGRAM_IDS: ${ADMIN_TELEGRAM_IDS}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,30 +71,40 @@ services:
     networks:
       - kkt-network
 
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: kkt-nginx
+  deployer:
+    image: ghcr.io/zhurbarv-hub/kkt-deployer:latest
+    container_name: kkt-deployer
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:8001:8001"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./web-new/dist:/var/www/new:ro
-      - ./web/dist:/var/www/legacy:ro
-      - ./ssl:/etc/nginx/ssl:ro
-      - nginx_logs:/var/log/nginx
-    depends_on:
-      - backend
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/kktapp/kkt-system:/opt/kkt
+    environment:
+      INSTALL_DIR: /opt/kkt
+      IS_MASTER: ${IS_MASTER:-false}
     networks:
       - kkt-network
+    profiles:
+      - master
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: kkt-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: 300
+      WATCHTOWER_LABEL_ENABLE: "false"
+    command: kkt-backend kkt-bot
+    profiles:
+      - client
 
 volumes:
   postgres_data:
   redis_data:
-  nginx_logs:
 
 networks:
   kkt-network:

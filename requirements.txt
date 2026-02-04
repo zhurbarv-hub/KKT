@@ -58,3 +58,6 @@ pyinstaller>=5.0
 # Caching
 # ============================================
 redis>=7.0.0
+
+# PostgreSQL Driver
+psycopg2-binary>=2.9.9
