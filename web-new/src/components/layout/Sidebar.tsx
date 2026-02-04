@@ -3,7 +3,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../hooks/useTheme";
 import {
   LayoutDashboard, Users, Clock, Tag, UserCog, Download,
-  HelpCircle, Database, LogOut, Menu, X, Sun, Moon,
+  HelpCircle, Database, LogOut, Menu, X, Sun, Moon, Cloud,
 } from "lucide-react";
 import { useState } from "react";
 import clsx from "clsx";
@@ -63,6 +63,7 @@ export default function Sidebar() {
 
   const superAdminItems = [
     { to: "/database", icon: <Database size={20} />, label: "База данных" },
+    { to: "/system", icon: <Cloud size={20} />, label: "Система" },
   ];
 
   return (

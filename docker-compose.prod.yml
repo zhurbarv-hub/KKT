@@ -109,3 +109,15 @@ volumes:
 networks:
   kkt-network:
     driver: bridge
+
+  deployer:
+    image: ghcr.io/zhurbarv-hub/kkt-deployer:latest
+    container_name: kkt-deployer
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/kkt:/opt/kkt
+    environment:
+      INSTALL_DIR: /opt/kkt
+    networks:
+      - kkt-network

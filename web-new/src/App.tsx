@@ -16,6 +16,7 @@ import ManagersPage from './pages/ManagersPage';
 import ExportPage from './pages/ExportPage';
 import SupportPage from './pages/SupportPage';
 import DatabasePage from './pages/DatabasePage';
+import SystemPage from './pages/SystemPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -76,6 +77,7 @@ function App() {
             <Route path="export" element={<ExportPage />} />
             <Route path="support" element={<SupportPage />} />
             <Route path="database" element={<DatabasePage />} />
+            <Route path="system" element={<SystemPage />} />
           </Route>
 
           {/* Catch all */}
