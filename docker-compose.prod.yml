@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kkt-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-kkt_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-kkt_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-kkt_user} -d ${DB_NAME:-kkt_production}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kkt-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: kkt-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kkt-network
+
+  backend:
+    image: ghcr.io/zhurbarv-hub/kkt-backend:latest
+    container_name: kkt-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-kkt_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-kkt_production}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ENVIRONMENT: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kkt-network
+
+  bot:
+    image: ghcr.io/zhurbarv-hub/kkt-bot:latest
+    container_name: kkt-bot
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-kkt_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-kkt_production}
+      REDIS_URL: redis://redis:6379/1
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      ADMIN_TELEGRAM_IDS: ${ADMIN_TELEGRAM_IDS}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kkt-network
+
+  frontend:
+    image: ghcr.io/zhurbarv-hub/kkt-frontend:latest
+    container_name: kkt-frontend
+    restart: unless-stopped
+    networks:
+      - kkt-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: kkt-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - certbot_webroot:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - kkt-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: kkt-certbot
+    volumes:
+      - ./ssl:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  postgres_data:
+  redis_data:
+  certbot_webroot:
+
+networks:
+  kkt-network:
+    driver: bridge
