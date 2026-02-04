@@ -41,6 +41,8 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-kkt_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-kkt_production}
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      telegram_bot_token: ${telegram_bot_token}
+      telegram_admin_ids: ${telegram_admin_ids}
       ENVIRONMENT: production
       IS_MASTER: ${IS_MASTER:-false}
     ports:
@@ -60,8 +62,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER:-kkt_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-kkt_production}
       REDIS_URL: redis://redis:6379/1
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      ADMIN_TELEGRAM_IDS: ${ADMIN_TELEGRAM_IDS}
+      telegram_bot_token: ${telegram_bot_token}
+      telegram_admin_ids: ${telegram_admin_ids}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     depends_on:
       postgres:
