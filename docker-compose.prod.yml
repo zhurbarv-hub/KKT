@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -11,9 +9,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-kkt_production}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - /home/kktapp/backups:/backups
-    ports:
-      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-kkt_user} -d ${DB_NAME:-kkt_production}"]
       interval: 10s
@@ -29,8 +24,6 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    ports:
-      - "127.0.0.1:6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -47,15 +40,21 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-kkt_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-kkt_production}
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      telegram_bot_token: ${TELEGRAM_BOT_TOKEN}
+      telegram_admin_ids: ${ADMIN_TELEGRAM_IDS}
       ENVIRONMENT: production
       IS_MASTER: ${IS_MASTER:-false}
-    ports:
-      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - kkt-network
 
@@ -66,14 +65,25 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER:-kkt_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-kkt_production}
       REDIS_URL: redis://redis:6379/1
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      ADMIN_TELEGRAM_IDS: ${ADMIN_TELEGRAM_IDS}
+      telegram_bot_token: ${TELEGRAM_BOT_TOKEN}
+      telegram_admin_ids: ${ADMIN_TELEGRAM_IDS}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - kkt-network
+
+  nginx:
+    image: ghcr.io/zhurbarv-hub/kkt-frontend:latest
+    container_name: kkt-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
     networks:
       - kkt-network
 
@@ -85,7 +95,7 @@ services:
       - "127.0.0.1:8001:8001"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /home/kktapp/kkt-system:/opt/kkt
+      - .:/opt/kkt
     environment:
       INSTALL_DIR: /opt/kkt
       IS_MASTER: ${IS_MASTER:-false}
@@ -94,7 +104,6 @@ services:
     profiles:
       - master
 
-  # Автообновление (только для клиентских систем)
   watchtower:
     image: containrrr/watchtower
     container_name: kkt-watchtower
@@ -105,7 +114,7 @@ services:
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_POLL_INTERVAL: 300
       WATCHTOWER_LABEL_ENABLE: "false"
-    command: kkt-backend kkt-bot
+    command: kkt-backend kkt-bot kkt-nginx
     profiles:
       - client
 

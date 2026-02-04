@@ -7,6 +7,7 @@ Client system: only version info and auto-update status
 
 import os
 import json
+import time
 import asyncio
 import logging
 from datetime import datetime
@@ -169,10 +170,10 @@ async def start_update(request: UpdateRequest, background_tasks: BackgroundTasks
     return {"message": "Update started", "status": "running"}
 
 
-async def run_update():
-    """Run the actual update process"""
+def run_update():
+    """Run the actual update process (runs in thread pool)"""
     global update_status
-    
+
     try:
         steps = [
             ("Pulling new images...", "docker compose pull"),
@@ -180,21 +181,21 @@ async def run_update():
             ("Starting services...", "docker compose up -d backend bot frontend"),
             ("Cleaning up...", "docker image prune -f"),
         ]
-        
+
         os.chdir(INSTALL_DIR)
-        
+
         for i, (message, command) in enumerate(steps):
             update_status["message"] = message
             update_status["progress"] = int((i / len(steps)) * 100)
-            
+
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             if result.returncode != 0:
                 raise Exception(f"Command failed: {result.stderr}")
-            
-            await asyncio.sleep(1)
-        
+
+            time.sleep(1)
+
         update_status = {"status": "success", "message": "Обновление завершено!", "progress": 100}
-        
+
     except Exception as e:
         logger.error(f"Update failed: {e}")
         update_status = {"status": "failed", "message": str(e), "progress": 0}
@@ -242,8 +243,8 @@ async def list_deployments():
     return list(deployments.values())
 
 
-async def run_deployment(deploy_id: str, request: DeployRequest):
-    """Run SSH deployment to remote server"""
+def run_deployment(deploy_id: str, request: DeployRequest):
+    """Run SSH deployment to remote server (runs in thread pool)"""
     deployment = deployments[deploy_id]
     deployment.status = "running"
     deployment.message = "Подключение к серверу..."
