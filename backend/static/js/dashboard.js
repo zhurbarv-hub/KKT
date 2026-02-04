@@ -1,8 +1,9 @@
-// Константы API - используем относительный путь для работы на любом домене
-const API_BASE_URL = window.location.origin + '/api';
+// Константы API (если ещё не объявлены)
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = window.location.origin + '/api';
+}
 
-// Глобальная переменная для отслеживания текущего вида
-let currentView = 'dashboard';
+// Глобальные переменные (если потребуются в будущем)
 
 // Проверка авторизации при загрузке страницы
 document.addEventListener('DOMContentLoaded', async () => {
@@ -10,93 +11,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     if (!token) {
-        window.location.href = '/static/login.html';
+        window.location.href = '/login.html';
         return;
     }
 
     // Отображение имени пользователя
     const userElement = document.getElementById('userName');
     if (userElement) {
-        userElement.textContent = `👤 ${user.full_name || user.username || 'Пользователь'}`;
+        userElement.textContent = user.full_name || user.username || 'Пользователь';
     }
 
-    // Настройка навигации
-    setupNavigation();
+    // Инициализация навигации
+    initNavigation();
 
-    // Загрузка данных дашборда
-    await loadDashboardData();
+    // Фильтрация меню по роли пользователя
+    filterMenuByRole(user.role);
 
-    // Настройка кнопки выхода
+    // Восстановление последней активной секции или переход по hash
+    const hash = window.location.hash.substring(1);
+    const lastSection = hash || localStorage.getItem('lastActiveSection') || 'statistics';
+    switchSection(lastSection);
+
+    // Настройка кнопок выхода
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
     }
-});
-
-// Настройка навигации между разделами
-function setupNavigation() {
-    const navLinks = document.querySelectorAll('.nav-link');
-    
-    navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const viewName = link.getAttribute('data-view');
-            switchView(viewName);
-        });
-    });
-}
-
-// Переключение между видами
-function switchView(viewName) {
-    // Убрать активный класс со всех ссылок и видов
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-    });
-    document.querySelectorAll('.view-content').forEach(view => {
-        view.classList.remove('active');
-    });
-    
-    // Добавить активный класс к выбранному виду
-    const selectedLink = document.querySelector(`[data-view="${viewName}"]`);
-    const selectedView = document.getElementById(`view-${viewName}`);
-    
-    if (selectedLink) selectedLink.classList.add('active');
-    if (selectedView) selectedView.classList.add('active');
-    
-    currentView = viewName;
-    
-    // Загрузить данные для выбранного раздела
-    loadViewData(viewName);
-}
-
-// Загрузка данных для текущего раздела
-function loadViewData(viewName) {
-    switch(viewName) {
-        case 'dashboard':
-            loadDashboardData();
-            break;
-        case 'clients':
-            if (window.loadClients) window.loadClients();
-            break;
-        case 'deadlines':
-            if (window.loadDeadlinesManage) window.loadDeadlinesManage();
-            break;
-        case 'deadline-types':
-            if (window.loadDeadlineTypes) window.loadDeadlineTypes();
-            break;
-        case 'export':
-            // Экспорт не требует загрузки данных
-            break;
+    const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+    if (sidebarLogoutBtn) {
+        sidebarLogoutBtn.addEventListener('click', handleLogout);
     }
-}
+
+    // Обновление имени пользователя в сайдбаре
+    const sidebarUserName = document.getElementById('sidebarUserName');
+    if (sidebarUserName) {
+        sidebarUserName.textContent = user.full_name || user.username || 'Пользователь';
+    }
+});
 
 // Загрузка данных дашборда
 async function loadDashboardData() {
     try {
         const token = localStorage.getItem('access_token');
+        if (!token) {
+            handleLogout();
+            return;
+        }
 
-        // Параллельная загрузка всех данных
-        const [summaryResponse, urgentResponse, typesResponse] = await Promise.all([
+        // Параллельная загрузка данных
+        const [summaryResponse, urgentResponse] = await Promise.all([
             fetch(`${API_BASE_URL}/dashboard/stats`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -104,12 +67,6 @@ async function loadDashboardData() {
                 }
             }),
             fetch(`${API_BASE_URL}/deadlines/urgent?days=14`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }),
-            fetch(`${API_BASE_URL}/deadline-types`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -122,26 +79,23 @@ async function loadDashboardData() {
                 handleLogout();
                 return;
             }
-            throw new Error('Ошибка загрузки данных');
+            const errorText = await summaryResponse.text();
+            showError(`Не удалось загрузить данные дашборда: ${summaryResponse.status}`);
+            throw new Error(`Ошибка загрузки данных: ${summaryResponse.status}`);
         }
 
         const summaryData = await summaryResponse.json();
         const urgentData = urgentResponse.ok ? await urgentResponse.json() : [];
-        const typesData = typesResponse.ok ? await typesResponse.json() : [];
 
         // Обновление карточек статистики
         updateStatisticsCards(summaryData);
 
-        // Отрисовка графиков
-        renderStatusChart(summaryData);
-        renderTypeChart(typesData);  // Теперь с реальными данными
-
         // Заполнение таблицы срочных дедлайнов
-        renderUrgentDeadlines(urgentData);  // Теперь с реальными данными
+        renderUrgentDeadlines(urgentData);
 
     } catch (error) {
-        console.error('Ошибка при загрузке данных дашборда:', error);
-        showError('Не удалось загрузить данные дашборда');
+        console.error('Ошибка загрузки дашборда:', error);
+        showError(`Не удалось отобразить данные дашборда: ${error.message}`);
     }
 }
 
@@ -154,6 +108,12 @@ function updateStatisticsCards(data) {
     // Активных клиентов
     const activeClientsEl = document.getElementById('activeClients');
     if (activeClientsEl) activeClientsEl.textContent = data.active_clients || 0;
+
+    // Всего касс
+    const totalCashRegistersEl = document.getElementById('totalCashRegisters');
+    if (totalCashRegistersEl) {
+        totalCashRegistersEl.textContent = data.total_cash_registers || 0;
+    }
 
     // Всего сроков
     const totalDeadlinesEl = document.getElementById('totalDeadlines');
@@ -169,140 +129,9 @@ function updateStatisticsCards(data) {
     if (expiredCountEl) expiredCountEl.textContent = data.status_expired || 0;
 }
 
-// Отрисовка графика статусов
-function renderStatusChart(data) {
-    const ctx = document.getElementById('statusChart');
-    if (!ctx) return;
 
-    const chartData = {
-        labels: [
-            `Норма (>${14} дн.)`,
-            `Внимание (7-14 дн.)`,
-            `Срочно (0-7 дн.)`,
-            `Просрочено`
-        ],
-        datasets: [{
-            data: [
-                data.status_green || 0,
-                data.status_yellow || 0,
-                data.status_red || 0,
-                data.status_expired || 0
-            ],
-            backgroundColor: [
-                'rgba(76, 175, 80, 0.8)',   // Зеленый
-                'rgba(255, 193, 7, 0.8)',   // Желтый
-                'rgba(244, 67, 54, 0.8)',   // Красный
-                'rgba(158, 158, 158, 0.8)'  // Серый
-            ],
-            borderColor: [
-                'rgba(76, 175, 80, 1)',
-                'rgba(255, 193, 7, 1)',
-                'rgba(244, 67, 54, 1)',
-                'rgba(158, 158, 158, 1)'
-            ],
-            borderWidth: 2
-        }]
-    };
 
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        font: { size: 12 },
-                        padding: 15
-                    }
-                },
-                title: {
-                    display: false
-                }
-            }
-        }
-    });
-}
-
-// Отрисовка графика по типам услуг
-function renderTypeChart(typeStats) {
-    const ctx = document.getElementById('typeChart');
-    if (!ctx) return;
-
-    // Если данные пришли как массив типов, а не статистика,
-    // просто показываем названия типов
-    let labels, counts;
-    
-    if (Array.isArray(typeStats) && typeStats.length > 0) {
-        // Если пришел массив типов (type_name, etc)
-        if (typeStats[0].type_name) {
-            labels = typeStats.map(stat => stat.type_name || 'Не указан');
-            // Пока нет статистики, используем 0
-            counts = typeStats.map(() => 0);
-        } else {
-            // Если пришла статистика
-            labels = typeStats.map(stat => stat.deadline_type || 'Не указан');
-            counts = typeStats.map(stat => stat.count || 0);
-        }
-    } else {
-        labels = ['Нет данных'];
-        counts = [0];
-    }
-
-    const data = {
-        labels: labels,
-        datasets: [{
-            label: 'Количество сроков',
-            data: counts,
-            backgroundColor: [
-                'rgba(102, 126, 234, 0.8)',
-                'rgba(118, 75, 162, 0.8)',
-                'rgba(237, 100, 166, 0.8)',
-                'rgba(255, 154, 158, 0.8)',
-                'rgba(250, 208, 196, 0.8)',
-                'rgba(165, 177, 194, 0.8)'
-            ],
-            borderColor: [
-                'rgba(102, 126, 234, 1)',
-                'rgba(118, 75, 162, 1)',
-                'rgba(237, 100, 166, 1)',
-                'rgba(255, 154, 158, 1)',
-                'rgba(250, 208, 196, 1)',
-                'rgba(165, 177, 194, 1)'
-            ],
-            borderWidth: 2
-        }]
-    };
-
-    new Chart(ctx, {
-        type: 'bar',
-        data: data,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                title: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Отрисовка таблицы срочных дедлайнов
+// Отрисовка таблицы срочных дедлайнов (включая просроченные)
 function renderUrgentDeadlines(deadlines) {
     const tableBody = document.getElementById('urgentDeadlinesTable');
     if (!tableBody) return;
@@ -322,43 +151,60 @@ function renderUrgentDeadlines(deadlines) {
 
     deadlines.forEach(deadline => {
         const row = document.createElement('tr');
-        
+        row.classList.add('clickable-row');
+        row.addEventListener('click', () => {
+            if (typeof editDeadline === 'function') {
+                editDeadline(deadline.id);
+            }
+        });
+
         // Определение статуса и цвета
         let statusText = '';
         let statusColor = '';
-        const daysRemaining = deadline.days_remaining;
+        let statusClass = 'status-pill--muted';
+        const daysRemaining = deadline.days_until_expiration;
 
         if (daysRemaining < 0) {
             statusText = 'Просрочено';
             statusColor = '#9E9E9E';
+            statusClass = 'status-pill--danger';
         } else if (daysRemaining <= 7) {
             statusText = 'Срочно';
             statusColor = '#F44336';
+            statusClass = 'status-pill--danger';
         } else if (daysRemaining <= 14) {
             statusText = 'Внимание';
             statusColor = '#FFC107';
+            statusClass = 'status-pill--warning';
         } else {
             statusText = 'Норма';
             statusColor = '#4CAF50';
+            statusClass = 'status-pill--success';
         }
 
-        // Форматирование даты
-        const expirationDate = new Date(deadline.expiration_date);
-        const formattedDate = expirationDate.toLocaleDateString('ru-RU', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
+        // Форматирование даты в российский формат ДД.ММ.ГГГГ
+        const formattedDate = formatDateRU(deadline.expiration_date);
+
+        // Получение имени клиента и типа дедлайна
+        const clientName = deadline.client?.company_name || 'Не указан';
+        const deadlineType = deadline.deadline_type?.name || deadline.deadline_type?.type_name || 'Не указан';
+
+        console.log('📖 Дедлайн ID=' + deadline.id + ':', {
+            client: deadline.client,
+            deadline_type: deadline.deadline_type,
+            clientName,
+            deadlineType
         });
 
         row.innerHTML = `
-            <td class="mdl-data-table__cell--non-numeric">${deadline.client_name || 'Не указан'}</td>
-            <td class="mdl-data-table__cell--non-numeric">${deadline.deadline_type || 'Не указан'}</td>
+            <td class="mdl-data-table__cell--non-numeric">${clientName}</td>
+            <td class="mdl-data-table__cell--non-numeric">${deadlineType}</td>
             <td class="mdl-data-table__cell--non-numeric">${formattedDate}</td>
             <td class="mdl-data-table__cell--non-numeric" style="font-weight: bold; color: ${statusColor};">
                 ${daysRemaining} дн.
             </td>
             <td class="mdl-data-table__cell--non-numeric">
-                <span style="background-color: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">
+                <span class="status-pill ${statusClass}">
                     ${statusText}
                 </span>
             </td>
@@ -368,19 +214,217 @@ function renderUrgentDeadlines(deadlines) {
     });
 }
 
+// Инициализация навигации
+function initNavigation() {
+    // Обработчики кликов на элементы навигации
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const section = item.dataset.section;
+            if (section) {
+                // Только для элементов с data-section блокируем переход
+                e.preventDefault();
+                switchSection(section);
+                window.location.hash = section;
+            }
+            // Для элементов без data-section разрешаем обычный переход по ссылке
+        });
+    });
+
+    // Обработчик изменения hash (browser back/forward)
+    window.addEventListener('hashchange', () => {
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            switchSection(hash);
+        }
+    });
+}
+
+// Переключение между разделами
+function switchSection(sectionId) {
+
+    // Скрыть все секции
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+        section.classList.add('hidden');
+    });
+
+    // Убрать активность со всех пунктов меню
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // Показать выбранную секцию
+    const targetSection = document.getElementById(`${sectionId}-section`);
+    if (targetSection) {
+        targetSection.classList.add('active');
+        targetSection.classList.remove('hidden');
+    }
+
+    // Активировать соответствующий пункт меню
+    const navItem = document.querySelector(`[data-section="${sectionId}"]`);
+    if (navItem) {
+        navItem.classList.add('active');
+    }
+
+    // Обновить заголовок страницы
+    const sectionTitles = {
+        'statistics': 'Управление Дедлайнами',
+        'users': 'Клиенты',
+        'deadlines': 'Дедлайны',
+        'deadline-types': 'Типы дедлайнов',
+        'managers': 'Пользователи',
+        'export': 'Экспорт данных'
+    };
+    document.title = `${sectionTitles[sectionId] || 'Управление Дедлайнами'} - Релабс Центр`;
+
+    // Загрузить данные для секции
+    loadSectionData(sectionId);
+
+    // Сохранить в localStorage
+    localStorage.setItem('lastActiveSection', sectionId);
+}
+
+// Загрузка данных для конкретной секции
+function loadSectionData(sectionId) {
+    switch (sectionId) {
+        case 'statistics':
+            loadDashboardData();
+            break;
+        case 'users':
+            if (typeof loadUsersData === 'function') {
+                loadUsersData();
+            }
+            break;
+        case 'deadlines':
+            if (typeof loadDeadlinesData === 'function') {
+                loadDeadlinesData();
+            }
+            break;
+        case 'deadline-types':
+            if (typeof loadDeadlineTypesData === 'function') {
+                loadDeadlineTypesData();
+            }
+            break;
+        case 'managers':
+            if (typeof loadManagersData === 'function') {
+                loadManagersData();
+            }
+            break;
+        case 'export':
+            if (typeof loadExportData === 'function') {
+                loadExportData();
+            }
+            break;
+    }
+}
+
+// Фильтрация меню по роли пользователя
+function filterMenuByRole(role) {
+    // Общая обработка всех элементов с data-role
+    document.querySelectorAll('[data-role]').forEach(item => {
+        const allowedRoles = item.dataset.role.split(',').map(r => r.trim());
+        if (!allowedRoles.includes(role)) {
+            item.style.display = 'none';
+        }
+    });
+
+    // Для клиентов показываем только их данные
+    if (role === 'client') {
+        // Раздел "Клиенты" переименовываем в "Мои данные"
+        const usersNavItem = document.querySelector('[data-section="users"]');
+        if (usersNavItem) {
+            const span = usersNavItem.querySelector('span');
+            if (span) span.textContent = 'Мои данные';
+        }
+    }
+}
+
 // Обработка выхода
 function handleLogout() {
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
-    window.location.href = '/static/login.html';
+    localStorage.removeItem('lastActiveSection');
+    window.location.href = '/login.html';
 }
 
 // Отображение ошибки
 function showError(message) {
+
+    // Попытка использовать snackbar
     const snackbar = document.getElementById('demo-snackbar');
     if (snackbar && snackbar.MaterialSnackbar) {
-        snackbar.MaterialSnackbar.showSnackbar({ message });
+        snackbar.MaterialSnackbar.showSnackbar({
+            message: message,
+            timeout: 5000
+        });
     } else {
+        // Fallback на alert если snackbar недоступен
+        console.warn('⚠️ Snackbar недоступен, используется alert');
         alert(message);
     }
+}
+
+// Функции навигации для кликабельных карточек статистики
+function navigateToClients() {
+    // Сбрасываем фильтр неактивных клиентов
+    if (typeof showInactiveUsers !== 'undefined') {
+        showInactiveUsers = false;
+    }
+    switchSection('users');
+    window.location.hash = 'users';
+}
+
+function navigateToAllDeadlines() {
+    switchSection('deadlines');
+    window.location.hash = 'deadlines';
+    // Сбросим все фильтры для отображения всех дедлайнов
+    setTimeout(() => {
+        if (typeof resetFilters === 'function') {
+            resetFilters();
+        }
+    }, 100);
+}
+
+function navigateToUrgentDeadlines() {
+    switchSection('deadlines');
+    window.location.hash = 'deadlines';
+    // Установим фильтр для срочных дедлайнов (0-7 дней)
+    setTimeout(() => {
+        // Дождемся загрузки данных и отрисовки фильтров
+        const checkAndApply = () => {
+            const filterDays = document.getElementById('filterDays');
+            if (filterDays) {
+                filterDays.value = 'urgent';
+                if (typeof applyFilters === 'function') {
+                    applyFilters();
+                }
+            } else {
+                // Если элемент еще не появился, повторим через 50мс
+                setTimeout(checkAndApply, 50);
+            }
+        };
+        checkAndApply();
+    }, 100);
+}
+
+function navigateToExpiredDeadlines() {
+    switchSection('deadlines');
+    window.location.hash = 'deadlines';
+    // Установим фильтр для просроченных дедлайнов
+    setTimeout(() => {
+        // Дождемся загрузки данных и отрисовки фильтров
+        const checkAndApply = () => {
+            const filterDays = document.getElementById('filterDays');
+            if (filterDays) {
+                filterDays.value = 'expired';
+                if (typeof applyFilters === 'function') {
+                    applyFilters();
+                }
+            } else {
+                // Если элемент еще не появился, повторим через 50мс
+                setTimeout(checkAndApply, 50);
+            }
+        };
+        checkAndApply();
+    }, 100);
 }

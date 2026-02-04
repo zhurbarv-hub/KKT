@@ -233,6 +233,7 @@ class DeadlineDetailResponse(BaseModel):
     deadline_type: Optional[DeadlineTypeInfo] = None
     notification_enabled: bool = True
     days_until_expiration: Optional[int] = None
+    status_color: Optional[str] = None
 
 
 class DeadlineListResponse(BaseModel):

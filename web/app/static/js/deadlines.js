@@ -24,14 +24,14 @@ async function loadDeadlinesData() {
     try {
         const token = localStorage.getItem('access_token');
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        
-        let url = `${API_BASE_URL}/deadlines?page=1&page_size=1000`; // Загружаем все для клиентской фильтрации
-        
+
+        let url = `${API_BASE_URL}/deadlines?page=1&page_size=100`; // Максимум 100 записей (ограничение API)
+
         // Для клиентов показываем только их дедлайны
         if (user.role === 'client') {
             url += `&client_id=${user.id}`;
         }
-        
+
         const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -39,41 +39,21 @@ async function loadDeadlinesData() {
             }
         });
 
-        console.log('=== ЗАГРУЗКА ДЕДЛАЙНОВ ===');
-        console.log('Response status:', response.status);
-        console.log('Response OK:', response.ok);
-
         if (!response.ok) {
             if (response.status === 401) {
-                console.log('Неавторизован, выход...');
                 handleLogout();
                 return;
             }
-            const errorText = await response.text();
-            console.error('Error response:', errorText);
             throw new Error('Ошибка загрузки дедлайнов: ' + response.status);
         }
 
         const data = await response.json();
-        console.log('Данные получены:', data);
-        console.log('Количество дедлайнов:', data.deadlines ? data.deadlines.length : 0);
-        console.log('Всего дедлайнов по API:', data.total);
-        
-        // Сохраняем все дедлайны
         allDeadlines = data.deadlines || [];
-        
-        // Детальное логирование всех дедлайнов
-        console.log('=== ПОЛНЫЙ СПИСОК ДЕДЛАЙНОВ ===');
-        allDeadlines.forEach((d, idx) => {
-            const clientName = d.client?.company_name || d.client?.name || 'НЕТ КЛИЕНТА';
-            const typeName = d.deadline_type?.name || d.deadline_type?.type_name || 'НЕТ ТИПА';
-            console.log(`${idx + 1}. ID=${d.id}, Клиент="${clientName}", Тип="${typeName}", Дней=${d.days_until_expiration}`);
-        });
-        
+
         renderDeadlinesTable(allDeadlines);
         renderDeadlinesPagination(data);
     } catch (error) {
-        console.error('Ошибка при загрузке дедлайнов:', error);
+        console.error('Ошибка загрузки дедлайнов:', error);
         showDeadlinesError('Не удалось загрузить список дедлайнов');
     }
 }
@@ -82,31 +62,17 @@ async function loadDeadlinesData() {
  * Отображение таблицы дедлайнов
  */
 function renderDeadlinesTable(deadlines) {
-    console.log('=== ОТОБРАЖЕНИЕ ТАБЛИЦЫ ДЕДЛАЙНОВ ===');
-    console.log('Количество дедлайнов для отображения:', deadlines.length);
-    console.log('Общее количество дедлайнов (allDeadlines):', allDeadlines.length);
-    if (deadlines.length > 0) {
-        console.log('Первый дедлайн:', deadlines[0]);
-        console.log('deadline_type первого дедлайна:', deadlines[0].deadline_type);
-        console.log('client первого дедлайна:', deadlines[0].client);
-    }
-    
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = ['admin', 'manager'].includes(user.role);
-    
+
     // Ограничиваем количество отображаемых записей
     const totalDeadlines = deadlines.length;
     const displayDeadlines = deadlines.slice(0, currentPageSize);
-    
-    console.log(`Отображаем ${displayDeadlines.length} из ${totalDeadlines} дедлайнов`);
-    
+
     // Создаем уникальные списки для фильтров
     const uniqueClients = [...new Set(allDeadlines.map(d => d.client?.company_name || d.client?.name).filter(Boolean))];
     const uniqueTypes = [...new Set(allDeadlines.map(d => d.deadline_type?.name || d.deadline_type?.type_name).filter(Boolean))];
-    
-    console.log('Уникальные клиенты:', uniqueClients);
-    console.log('Уникальные типы:', uniqueTypes);
-    
+
     const tableHTML = `
         <div class="section-header">
             <h2>⏰ Управление дедлайнами</h2>
@@ -235,19 +201,13 @@ function renderDeadlinesTable(deadlines) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${displayDeadlines.length > 0 ? displayDeadlines.map((deadline, idx) => {
-                        const daysLeft = deadline.days_until_expiration;
-                        const status = getDeadlineStatus(daysLeft);
-                        
-                        // Получаем имя клиента
-                        const clientName = deadline.client?.company_name || deadline.client?.name || '-';
-                        
-                        // Получаем тип услуги
-                        const typeName = deadline.deadline_type?.name || deadline.deadline_type?.type_name || '-';
-                        
-                        console.log(`Отрисовка строки ${idx + 1}: ID=${deadline.id}, Клиент="${clientName}", Тип="${typeName}"`);
-                        
-                        return `
+                    ${displayDeadlines.length > 0 ? displayDeadlines.map((deadline) => {
+        const daysLeft = deadline.days_until_expiration;
+        const status = getDeadlineStatus(daysLeft);
+        const clientName = deadline.client?.company_name || deadline.client?.name || '-';
+        const typeName = deadline.deadline_type?.name || deadline.deadline_type?.type_name || '-';
+
+        return `
                             <tr data-deadline-id="${deadline.id}">
                                 ${isAdmin ? `<td class="mdl-data-table__cell--non-numeric">${clientName}</td>` : ''}
                                 <td class="mdl-data-table__cell--non-numeric">${typeName}</td>
@@ -271,8 +231,8 @@ function renderDeadlinesTable(deadlines) {
                                 </td>
                                 ` : ''}
                             </tr>
-                        `;  
-                    }).join('') : `
+                        `;
+    }).join('') : `
                         <tr>
                             <td colspan="${isAdmin ? '7' : '5'}" style="text-align: center; padding: 20px;">
                                 Дедлайны отсутствуют
@@ -287,9 +247,9 @@ function renderDeadlinesTable(deadlines) {
             <p>Показано <strong>${displayDeadlines.length}</strong> из <strong>${totalDeadlines}</strong> дедлайнов</p>
         </div>
     `;
-    
+
     deadlinesSection.innerHTML = tableHTML;
-    
+
     // Устанавливаем выбранное значение размера страницы
     setTimeout(() => {
         const pageSizeSelect = document.getElementById('pageSizeSelect');
@@ -297,12 +257,12 @@ function renderDeadlinesTable(deadlines) {
             pageSizeSelect.value = currentPageSize.toString();
         }
     }, 10);
-    
+
     // Обновляем MDL компоненты
     if (typeof componentHandler !== 'undefined') {
         componentHandler.upgradeDom();
     }
-    
+
     // Добавляем обработчик клика на строки для редактирования
     setTimeout(() => {
         const rows = document.querySelectorAll('#deadlines-section tbody tr');
@@ -310,7 +270,7 @@ function renderDeadlinesTable(deadlines) {
             const deadlineId = row.getAttribute('data-deadline-id');
             if (deadlineId) {
                 row.style.cursor = 'pointer';
-                row.addEventListener('click', function(e) {
+                row.addEventListener('click', function (e) {
                     // Проверяем, что клик не по кнопке удаления
                     if (!e.target.closest('button') && !e.target.closest('.mdl-button')) {
                         editDeadline(parseInt(deadlineId));
@@ -360,7 +320,7 @@ function formatDate(dateString) {
 function renderDeadlinesPagination(data) {
     const paginationDiv = document.getElementById('deadlinesPagination');
     if (!paginationDiv) return;
-    
+
     paginationDiv.innerHTML = `
         <p>Показано ${data.deadlines?.length || 0} из ${data.total || 0} дедлайнов</p>
     `;
@@ -399,18 +359,18 @@ function editDeadline(id) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
-    .then(deadline => {
-        const modal = createDeadlineModal('edit', deadline);
-        document.body.appendChild(modal);
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
-    })
-    .catch(error => {
-        console.error('Ошибка загрузки дедлайна:', error);
-        alert('Не удалось загрузить данные дедлайна');
-    });
+        .then(response => response.json())
+        .then(deadline => {
+            const modal = createDeadlineModal('edit', deadline);
+            document.body.appendChild(modal);
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки дедлайна:', error);
+            alert('Не удалось загрузить данные дедлайна');
+        });
 }
 
 /**
@@ -420,7 +380,7 @@ async function deleteDeadline(id) {
     if (!confirm('Вы уверены, что хотите удалить этот дедлайн?')) {
         return;
     }
-    
+
     try {
         const token = localStorage.getItem('access_token');
         const response = await fetch(`${API_BASE_URL}/deadlines/${id}`, {
@@ -430,11 +390,11 @@ async function deleteDeadline(id) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             throw new Error('Ошибка удаления дедлайна');
         }
-        
+
         alert('Дедлайн успешно удалён');
         loadDeadlinesData();
     } catch (error) {
@@ -449,11 +409,12 @@ async function deleteDeadline(id) {
 function createDeadlineModal(mode, deadline = {}) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Редактирование дедлайна' : 'Добавить дедлайн';
-    
+
     const modalDiv = document.createElement('div');
     modalDiv.className = 'modal-overlay';
+    modalDiv.style.zIndex = '999999';
     modalDiv.innerHTML = `
-        <div class="modal" style="width: 600px; max-width: 90vw; border-radius: 12px; padding: 0; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+        <div class="modal" style="width: 600px; max-width: 90vw; border-radius: 12px; padding: 0; box-shadow: 0 10px 40px rgba(0,0,0,0.2); z-index: 999999;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                 <h3 style="margin: 0; font-size: 20px; font-weight: 500;">
                     <i class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 24px;">event</i>
@@ -584,7 +545,7 @@ function createDeadlineModal(mode, deadline = {}) {
             </div>
         </div>
     `;
-    
+
     // Загружаем списки клиентов, типов и касс
     setTimeout(async () => {
         await loadClientsForSelect(deadline.client_id);
@@ -593,7 +554,7 @@ function createDeadlineModal(mode, deadline = {}) {
             await loadCashRegistersForSelect(deadline.client_id, deadline.cash_register_id);
         }
     }, 50);
-    
+
     return modalDiv;
 }
 
@@ -604,51 +565,51 @@ async function loadClientsForSelect(selectedId = null) {
     try {
         console.log('=== НАЧАЛО ЗАГРУЗКИ КЛИЕНТОВ ===');
         console.log('Selected ID:', selectedId);
-        
+
         const token = localStorage.getItem('access_token');
         console.log('Token exists:', !!token);
-        
+
         const url = `${API_BASE_URL}/users?role=client&page=1&page_size=100`;
         console.log('Request URL:', url);
-        
+
         const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
-        
+
         console.log('Response status:', response.status);
         console.log('Response OK:', response.ok);
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Response error text:', errorText);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         console.log('Данные получены:', data);
         console.log('Количество клиентов:', data.users ? data.users.length : 0);
-        
+
         const select = document.getElementById('client_id');
         if (!select) {
             console.error('❌ Select элемент client_id не найден!');
             return;
         }
         console.log('✅ Select элемент найден');
-        
+
         // Очищаем все опции кроме первой
         while (select.options.length > 1) {
             select.remove(1);
         }
         console.log('Select очищен, осталось опций:', select.options.length);
-        
+
         if (!data.users || data.users.length === 0) {
             console.warn('⚠️ Нет доступных клиентов');
             return;
         }
-        
+
         data.users.forEach(user => {
             const option = document.createElement('option');
             option.value = user.id;
@@ -659,9 +620,9 @@ async function loadClientsForSelect(selectedId = null) {
             select.appendChild(option);
             console.log('Добавлен клиент:', user.id, '-', option.textContent);
         });
-        
+
         // Добавляем обработчик изменения клиента
-        select.addEventListener('change', async function() {
+        select.addEventListener('change', async function () {
             const clientId = this.value;
             if (clientId) {
                 await loadCashRegistersForSelect(parseInt(clientId), null);
@@ -673,7 +634,7 @@ async function loadClientsForSelect(selectedId = null) {
                 }
             }
         });
-        
+
         console.log(`✅ Добавлено ${data.users.length} клиентов в select`);
         console.log('Всего опций в select:', select.options.length);
         console.log('=== КОНЕЦ ЗАГРУЗКИ КЛИЕНТОВ ===');
@@ -691,7 +652,7 @@ async function loadDeadlineTypesForSelect(selectedId = null) {
     try {
         console.log('Загрузка типов дедлайнов для select...');
         const token = localStorage.getItem('access_token');
-        
+
         // Загружаем только активные типы (без include_inactive)
         const response = await fetch(`${API_BASE_URL}/deadline-types`, {
             headers: {
@@ -699,47 +660,47 @@ async function loadDeadlineTypesForSelect(selectedId = null) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const types = await response.json();
         console.log('Типы дедлайнов загружены:', types);
-        
+
         const select = document.getElementById('deadline_type_id');
         if (!select) {
             console.error('Select элемент deadline_type_id не найден!');
             return;
         }
-        
+
         // Очищаем все опции кроме первой
         while (select.options.length > 1) {
             select.remove(1);
         }
-        
+
         if (!types || types.length === 0) {
             console.warn('Нет доступных типов дедлайнов');
             return;
         }
-        
+
         types.forEach(type => {
             const option = document.createElement('option');
             option.value = type.id;
-            
+
             // Используем type_name из API, объединяем с description если есть
-            const displayName = type.description 
-                ? `${type.type_name} (${type.description})` 
+            const displayName = type.description
+                ? `${type.type_name} (${type.description})`
                 : type.type_name;
-            
+
             option.textContent = displayName;
-            
+
             if (selectedId && type.id === selectedId) {
                 option.selected = true;
             }
             select.appendChild(option);
         });
-        
+
         console.log(`Добавлено ${types.length} типов в select`);
     } catch (error) {
         console.error('Ошибка загрузки типов дедлайнов:', error);
@@ -759,18 +720,18 @@ async function loadCashRegistersForSelect(clientId, selectedId = null) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const registers = await response.json();
-        
+
         const select = document.getElementById('cash_register_id');
         if (!select) return;
-        
+
         select.innerHTML = '<option value="">Общий дедлайн (не привязан к кассе)</option>';
-        
+
         if (registers && registers.length > 0) {
             registers.forEach(reg => {
                 const option = document.createElement('option');
@@ -794,12 +755,12 @@ async function loadCashRegistersForSelect(clientId, selectedId = null) {
 function updateCashRegisterModelField() {
     const cashRegisterSelect = document.getElementById('cash_register_id');
     const modelInput = document.getElementById('cash_register_model');
-    
+
     if (!cashRegisterSelect || !modelInput) return;
-    
+
     const selectedOption = cashRegisterSelect.options[cashRegisterSelect.selectedIndex];
     const model = selectedOption.getAttribute('data-model') || '';
-    
+
     if (cashRegisterSelect.value) {
         modelInput.value = model;
     }
@@ -810,7 +771,7 @@ function updateCashRegisterModelField() {
  */
 async function submitDeadlineForm(event, mode, deadlineId) {
     event.preventDefault();
-    
+
     const formData = {
         client_id: parseInt(document.getElementById('client_id').value),
         deadline_type_id: parseInt(document.getElementById('deadline_type_id').value),
@@ -822,13 +783,13 @@ async function submitDeadlineForm(event, mode, deadlineId) {
         notes: document.getElementById('notes').value,
         status: 'active'
     };
-    
+
     console.log('Отправка формы дедлайна:', mode, formData);
-    
+
     const token = localStorage.getItem('access_token');
     const url = mode === 'edit' ? `${API_BASE_URL}/deadlines/${deadlineId}` : `${API_BASE_URL}/deadlines`;
     const method = mode === 'edit' ? 'PUT' : 'POST';
-    
+
     try {
         const response = await fetch(url, {
             method: method,
@@ -838,17 +799,17 @@ async function submitDeadlineForm(event, mode, deadlineId) {
             },
             body: JSON.stringify(formData)
         });
-        
+
         console.log('Response status:', response.status);
         console.log('Response OK:', response.ok);
-        
+
         if (!response.ok) {
             // Пытаемся распарсить JSON ответ
             const contentType = response.headers.get('content-type');
             console.log('Response Content-Type:', contentType);
-            
+
             let errorMessage = 'Ошибка сохранения';
-            
+
             if (contentType && contentType.includes('application/json')) {
                 try {
                     const error = await response.json();
@@ -866,13 +827,13 @@ async function submitDeadlineForm(event, mode, deadlineId) {
                 console.log('Response text (not JSON):', text);
                 errorMessage = `Ошибка сервера ${response.status}: ${text.substring(0, 200)}`;
             }
-            
+
             throw new Error(errorMessage);
         }
-        
+
         const result = await response.json();
         console.log('Успешно сохранено:', result);
-        
+
         alert(mode === 'edit' ? 'Дедлайн успешно обновлён' : 'Дедлайн успешно создан');
         closeDeadlineModal(event.target);
         loadDeadlinesData();
@@ -889,25 +850,25 @@ async function submitDeadlineForm(event, mode, deadlineId) {
 function closeDeadlineModal(element) {
     // Ищем overlay - либо через closest, либо через document
     let overlay = null;
-    
+
     if (element && element.closest) {
         overlay = element.closest('.modal-overlay');
     }
-    
+
     // Если не нашли через closest, ищем в document
     if (!overlay) {
         overlay = document.querySelector('.modal-overlay');
     }
-    
+
     if (overlay) {
         // Проверяем, не закрывается ли уже модальное окно
         if (overlay.dataset.closing === 'true') {
             return; // Уже закрывается, не делаем ничего
         }
-        
+
         // Отмечаем, что началось закрытие
         overlay.dataset.closing = 'true';
-        
+
         const modal = overlay.querySelector('.modal');
         if (modal) {
             modal.classList.remove('show');
@@ -922,15 +883,15 @@ function closeDeadlineModal(element) {
 function applyFilters() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = ['admin', 'manager'].includes(user.role);
-    
+
     // Считываем значения фильтров
     const filterClient = isAdmin ? (document.getElementById('filterClient')?.value || '') : '';
     const filterType = document.getElementById('filterType')?.value || '';
     const filterDays = document.getElementById('filterDays')?.value || 'all';
     const filterStatus = document.getElementById('filterStatus')?.value || 'all';
-    
+
     console.log('Применение фильтров:', { filterClient, filterType, filterDays, filterStatus });
-    
+
     // Сохраняем текущие фильтры
     currentFilters = {
         client: filterClient,
@@ -938,24 +899,24 @@ function applyFilters() {
         daysRange: filterDays,
         status: filterStatus
     };
-    
+
     // Фильтруем дедлайны
     let filtered = allDeadlines.filter(deadline => {
         const clientName = deadline.client?.company_name || deadline.client?.name || '-';
         const typeName = deadline.deadline_type?.name || deadline.deadline_type?.type_name || '-';
         const daysLeft = deadline.days_until_expiration;
         const status = getDeadlineStatus(daysLeft);
-        
+
         // Фильтр по клиенту
         if (filterClient && clientName !== filterClient) {
             return false;
         }
-        
+
         // Фильтр по типу услуги
         if (filterType && typeName !== filterType) {
             return false;
         }
-        
+
         // Фильтр по оставшимся дням
         if (filterDays !== 'all') {
             if (filterDays === 'expired' && daysLeft >= 0) return false;
@@ -963,17 +924,17 @@ function applyFilters() {
             if (filterDays === 'soon' && (daysLeft < 8 || daysLeft > 30)) return false;
             if (filterDays === 'normal' && daysLeft <= 30) return false;
         }
-        
+
         // Фильтр по статусу
         if (filterStatus !== 'all' && status.label !== filterStatus) {
             return false;
         }
-        
+
         return true;
     });
-    
+
     console.log(`Отфильтровано: ${filtered.length} из ${allDeadlines.length} дедлайнов`);
-    
+
     // Перерисовываем таблицу
     renderDeadlinesTable(filtered);
 }
@@ -984,7 +945,7 @@ function applyFilters() {
 function resetFilters() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = ['admin', 'manager'].includes(user.role);
-    
+
     // Сбрасываем значения фильтров
     if (isAdmin && document.getElementById('filterClient')) {
         document.getElementById('filterClient').value = '';
@@ -998,7 +959,7 @@ function resetFilters() {
     if (document.getElementById('filterStatus')) {
         document.getElementById('filterStatus').value = 'all';
     }
-    
+
     // Сбрасываем текущие фильтры
     currentFilters = {
         client: '',
@@ -1006,9 +967,9 @@ function resetFilters() {
         daysRange: 'all',
         status: 'all'
     };
-    
+
     console.log('Фильтры сброшены');
-    
+
     // Показываем все дедлайны
     renderDeadlinesTable(allDeadlines);
 }
@@ -1021,7 +982,7 @@ function changePageSize() {
     if (select) {
         currentPageSize = parseInt(select.value) || 20;
         console.log('Размер страницы изменён на:', currentPageSize);
-        
+
         // Применяем текущие фильтры с новым размером
         applyFilters();
     }

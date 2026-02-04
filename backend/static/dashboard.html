@@ -11,58 +11,75 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header mdl-layout--fixed-drawer">
-        <header class="mdl-layout__header">
-            <div class="mdl-layout__header-row">
-                <span class="mdl-layout-title">Релабс Центр - Управление Дедлайнами</span>
-                <div class="mdl-layout-spacer"></div>
-                <nav class="mdl-navigation">
-                    <span class="mdl-navigation__link" id="userName">👤 Загрузка...</span>
-                    <button class="mdl-button mdl-js-button mdl-button--icon" id="logoutBtn" title="Выход">
-                        <i class="material-icons">exit_to_app</i>
-                    </button>
-                </nav>
+    <div class="dashboard-layout">
+        <!-- Боковое меню -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📈 Релабс Центр</h2>
             </div>
-        </header>
-        
-        <div class="mdl-layout__drawer">
-            <span class="mdl-layout-title">Меню</span>
-            <nav class="mdl-navigation">
-                <a class="mdl-navigation__link nav-link active" href="#" data-view="dashboard">
+            <nav class="sidebar-nav">
+                <a href="#statistics" class="nav-item active" data-section="statistics">
                     <i class="material-icons">dashboard</i>
                     <span>Статистика</span>
                 </a>
-                <a class="mdl-navigation__link nav-link" href="#" data-view="clients">
+                <a href="#users" class="nav-item" data-section="users">
                     <i class="material-icons">people</i>
                     <span>Клиенты</span>
                 </a>
-                <a class="mdl-navigation__link nav-link" href="#" data-view="deadlines">
-                    <i class="material-icons">event</i>
+                <a href="#deadlines" class="nav-item" data-section="deadlines">
+                    <i class="material-icons">alarm</i>
                     <span>Дедлайны</span>
                 </a>
-                <a class="mdl-navigation__link nav-link" href="#" data-view="deadline-types">
+                <a href="#deadline-types" class="nav-item" data-section="deadline-types">
                     <i class="material-icons">category</i>
                     <span>Типы услуг</span>
                 </a>
-                <a class="mdl-navigation__link nav-link" href="#" data-view="export">
-                    <i class="material-icons">file_download</i>
+                <a href="#managers" class="nav-item" data-section="managers" data-role="admin,manager">
+                    <i class="material-icons">admin_panel_settings</i>
+                    <span>Пользователи</span>
+                </a>
+                <a href="#export" class="nav-item" data-section="export">
+                    <i class="material-icons">download</i>
                     <span>Экспорт</span>
                 </a>
+                <a href="/static/support-requests.html" class="nav-item" data-role="admin,manager">
+                    <i class="material-icons">help_outline</i>
+                    <span>Обращения</span>
+                </a>
+                <a href="/static/database-management.html" class="nav-item" data-role="admin">
+                    <i class="material-icons">storage</i>
+                    <span>Обслуживание БД</span>
+                </a>
             </nav>
-        </div>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="material-icons">account_circle</i>
+                    <span id="sidebarUserName">Загрузка...</span>
+                </div>
+                <button class="mdl-button mdl-js-button mdl-button--raised" id="sidebarLogoutBtn">
+                    <i class="material-icons">exit_to_app</i>
+                    Выход
+                </button>
+            </div>
+        </aside>
         
-        <main class="mdl-layout__content">
-            <div class="page-content">
+        <!-- Основной контент -->
+        <main class="main-content">
+            <!-- Верхняя панель -->
+            <header class="content-header">
+                <h1 id="pageTitle">Дедлайнер</h1>
+                <div class="header-actions">
+                    <span class="user-badge" id="userName">👤 Загрузка...</span>
+                </div>
+            </header>
+            
+            <!-- Раздел Статистика -->
+            <div id="statistics-section" class="content-section active">
                 <!-- Статистика -->
-                <div id="view-dashboard" class="view-content active">
-                    <div class="mdl-grid">
-                        <div class="mdl-cell mdl-cell--12-col">
-                            <h3>📊 Статистика</h3>
-                        </div>
-                    
+                <div class="mdl-grid">
                     <!-- Карточки статистики -->
-                    <div class="mdl-cell mdl-cell--3-col mdl-cell--6-col-tablet mdl-cell--4-col-phone">
-                        <div class="mdl-card mdl-shadow--2dp" style="width: 100%; min-height: 150px;">
+                    <div class="mdl-cell" style="width: calc(20% - 16px); min-width: 180px;">
+                        <div class="mdl-card mdl-shadow--2dp clickable-card" onclick="navigateToClients()" style="width: 100%; min-height: 150px; cursor: pointer; transition: transform 0.2s;">
                             <div class="mdl-card__title" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                                 <h2 class="mdl-card__title-text">Всего клиентов</h2>
                             </div>
@@ -75,8 +92,22 @@
                         </div>
                     </div>
                     
-                    <div class="mdl-cell mdl-cell--3-col mdl-cell--6-col-tablet mdl-cell--4-col-phone">
+                    <div class="mdl-cell" style="width: calc(20% - 16px); min-width: 180px;">
                         <div class="mdl-card mdl-shadow--2dp" style="width: 100%; min-height: 150px;">
+                            <div class="mdl-card__title" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: white;">
+                                <h2 class="mdl-card__title-text">Всего касс</h2>
+                            </div>
+                            <div class="mdl-card__supporting-text" style="text-align: center; font-size: 36px; font-weight: bold; color: #30cfd0;">
+                                <span id="totalCashRegisters">-</span>
+                            </div>
+                            <div class="mdl-card__actions mdl-card--border" style="text-align: center; font-size: 12px; color: #666;">
+                                Активных клиентов
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mdl-cell" style="width: calc(20% - 16px); min-width: 180px;">
+                        <div class="mdl-card mdl-shadow--2dp clickable-card" onclick="navigateToAllDeadlines()" style="width: 100%; min-height: 150px; cursor: pointer; transition: transform 0.2s;">
                             <div class="mdl-card__title" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
                                 <h2 class="mdl-card__title-text">Всего дедлайнов</h2>
                             </div>
@@ -89,8 +120,8 @@
                         </div>
                     </div>
                     
-                    <div class="mdl-cell mdl-cell--3-col mdl-cell--6-col-tablet mdl-cell--4-col-phone">
-                        <div class="mdl-card mdl-shadow--2dp" style="width: 100%; min-height: 150px;">
+                    <div class="mdl-cell" style="width: calc(20% - 16px); min-width: 180px;">
+                        <div class="mdl-card mdl-shadow--2dp clickable-card" onclick="navigateToUrgentDeadlines()" style="width: 100%; min-height: 150px; cursor: pointer; transition: transform 0.2s;">
                             <div class="mdl-card__title" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;">
                                 <h2 class="mdl-card__title-text">Истекает скоро</h2>
                             </div>
@@ -103,8 +134,8 @@
                         </div>
                     </div>
                     
-                    <div class="mdl-cell mdl-cell--3-col mdl-cell--6-col-tablet mdl-cell--4-col-phone">
-                        <div class="mdl-card mdl-shadow--2dp" style="width: 100%; min-height: 150px;">
+                    <div class="mdl-cell" style="width: calc(20% - 16px); min-width: 180px;">
+                        <div class="mdl-card mdl-shadow--2dp clickable-card" onclick="navigateToExpiredDeadlines()" style="width: 100%; min-height: 150px; cursor: pointer; transition: transform 0.2s;">
                             <div class="mdl-card__title" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
                                 <h2 class="mdl-card__title-text">Просрочено</h2>
                             </div>
@@ -118,31 +149,6 @@
                     </div>
                 </div>
                 
-                <!-- Графики -->
-                <div class="mdl-grid">
-                    <div class="mdl-cell mdl-cell--6-col mdl-cell--12-col-tablet">
-                        <div class="mdl-card mdl-shadow--2dp" style="width: 100%;">
-                            <div class="mdl-card__title mdl-color--primary mdl-color-text--white">
-                                <h2 class="mdl-card__title-text">Распределение по статусам</h2>
-                            </div>
-                            <div class="mdl-card__supporting-text" style="padding: 20px;">
-                                <canvas id="statusChart" height="200"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mdl-cell mdl-cell--6-col mdl-cell--12-col-tablet">
-                        <div class="mdl-card mdl-shadow--2dp" style="width: 100%;">
-                            <div class="mdl-card__title mdl-color--primary mdl-color-text--white">
-                                <h2 class="mdl-card__title-text">Дедлайны по типам</h2>
-                            </div>
-                            <div class="mdl-card__supporting-text" style="padding: 20px;">
-                                <canvas id="typeChart" height="200"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- Срочные дедлайны -->
                 <div class="mdl-grid">
                     <div class="mdl-cell mdl-cell--12-col">
@@ -151,7 +157,8 @@
                                 <h2 class="mdl-card__title-text">🚨 Срочные дедлайны</h2>
                             </div>
                             <div class="mdl-card__supporting-text">
-                                <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp" style="width: 100%;">
+                                <div class="table-wrapper">
+                                    <table class="mdl-data-table mdl-js-data-table">
                                     <thead>
                                         <tr>
                                             <th class="mdl-data-table__cell--non-numeric">Клиент</th>
@@ -168,165 +175,55 @@
                                             </td>
                                         </tr>
                                     </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Клиенты -->
-                <div id="view-clients" class="view-content">
-                    <div class="mdl-grid">
-                        <div class="mdl-cell mdl-cell--12-col">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h3>👥 Управление клиентами</h3>
-                                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="addClientBtn">
-                                    <i class="material-icons">add</i> Добавить клиента
-                                </button>
-                            </div>
-                        </div>
-                        <div class="mdl-cell mdl-cell--12-col">
-                            <div class="mdl-card mdl-shadow--2dp" style="width: 100%;">
-                                <div class="mdl-card__supporting-text" style="width: 100%; overflow-x: auto;">
-                                    <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp" style="width: 100%;" id="clientsTable">
-                                        <thead>
-                                            <tr>
-                                                <th class="mdl-data-table__cell--non-numeric">ID</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Имя</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Email</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Telegram</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Статус</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Действия</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="clientsTableBody">
-                                            <tr>
-                                                <td colspan="6" class="mdl-data-table__cell--non-numeric" style="text-align: center; padding: 20px;">
-                                                    Загрузка...
-                                                </td>
-                                            </tr>
-                                        </tbody>
                                     </table>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Дедлайны -->
-                <div id="view-deadlines" class="view-content">
-                    <div class="mdl-grid">
-                        <div class="mdl-cell mdl-cell--12-col">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h3>📅 Управление дедлайнами</h3>
-                                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="addDeadlineBtn">
-                                    <i class="material-icons">add</i> Добавить дедлайн
-                                </button>
-                            </div>
-                        </div>
-                        <div class="mdl-cell mdl-cell--12-col">
-                            <div class="mdl-card mdl-shadow--2dp" style="width: 100%;">
-                                <div class="mdl-card__supporting-text" style="width: 100%; overflow-x: auto;">
-                                    <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp" style="width: 100%;" id="deadlinesManageTable">
-                                        <thead>
-                                            <tr>
-                                                <th class="mdl-data-table__cell--non-numeric">ID</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Клиент</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Тип услуги</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Дата истечения</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Статус</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Примечание</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Действия</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="deadlinesManageTableBody">
-                                            <tr>
-                                                <td colspan="7" class="mdl-data-table__cell--non-numeric" style="text-align: center; padding: 20px;">
-                                                    Загрузка...
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+            </div>
+            
+            <!-- Раздел Клиенты -->
+            <div id="users-section" class="content-section hidden">
+                <div class="mdl-grid">
+                    <div class="mdl-cell mdl-cell--12-col">
+                        <p style="text-align: center; padding: 40px;">Загрузка данных...</p>
                     </div>
                 </div>
-                
-                <!-- Типы услуг -->
-                <div id="view-deadline-types" class="view-content">
-                    <div class="mdl-grid">
-                        <div class="mdl-cell mdl-cell--12-col">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h3>🏷️ Управление типами услуг</h3>
-                                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="addDeadlineTypeBtn">
-                                    <i class="material-icons">add</i> Добавить тип
-                                </button>
-                            </div>
-                        </div>
-                        <div class="mdl-cell mdl-cell--12-col">
-                            <div class="mdl-card mdl-shadow--2dp" style="width: 100%;">
-                                <div class="mdl-card__supporting-text" style="width: 100%; overflow-x: auto;">
-                                    <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp" style="width: 100%;" id="deadlineTypesTable">
-                                        <thead>
-                                            <tr>
-                                                <th class="mdl-data-table__cell--non-numeric">ID</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Название</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Описание</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Период (дней)</th>
-                                                <th class="mdl-data-table__cell--non-numeric">Действия</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="deadlineTypesTableBody">
-                                            <tr>
-                                                <td colspan="5" class="mdl-data-table__cell--non-numeric" style="text-align: center; padding: 20px;">
-                                                    Загрузка...
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+            </div>
+            
+            <!-- Раздел Дедлайны -->
+            <div id="deadlines-section" class="content-section hidden">
+                <div class="mdl-grid">
+                    <div class="mdl-cell mdl-cell--12-col">
+                        <p style="text-align: center; padding: 40px;">Загрузка данных...</p>
                     </div>
                 </div>
-                
-                <!-- Экспорт -->
-                <div id="view-export" class="view-content">
-                    <div class="mdl-grid">
-                        <div class="mdl-cell mdl-cell--12-col">
-                            <h3>📄 Экспорт данных</h3>
-                        </div>
-                        <div class="mdl-cell mdl-cell--6-col mdl-cell--12-col-tablet">
-                            <div class="mdl-card mdl-shadow--2dp" style="width: 100%;">
-                                <div class="mdl-card__title mdl-color--primary mdl-color-text--white">
-                                    <h2 class="mdl-card__title-text">Экспорт клиентов</h2>
-                                </div>
-                                <div class="mdl-card__supporting-text">
-                                    <p>Экспортировать список всех клиентов в формат Excel</p>
-                                </div>
-                                <div class="mdl-card__actions mdl-card--border">
-                                    <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="exportClientsBtn">
-                                        <i class="material-icons">file_download</i> Скачать Excel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mdl-cell mdl-cell--6-col mdl-cell--12-col-tablet">
-                            <div class="mdl-card mdl-shadow--2dp" style="width: 100%;">
-                                <div class="mdl-card__title mdl-color--primary mdl-color-text--white">
-                                    <h2 class="mdl-card__title-text">Экспорт дедлайнов</h2>
-                                </div>
-                                <div class="mdl-card__supporting-text">
-                                    <p>Экспортировать список всех дедлайнов в формат Excel</p>
-                                </div>
-                                <div class="mdl-card__actions mdl-card--border">
-                                    <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="exportDeadlinesBtn">
-                                        <i class="material-icons">file_download</i> Скачать Excel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+            </div>
+            
+            <!-- Раздел Типы услуг -->
+            <div id="deadline-types-section" class="content-section hidden">
+                <div class="mdl-grid">
+                    <div class="mdl-cell mdl-cell--12-col">
+                        <p style="text-align: center; padding: 40px;">Загрузка данных...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Раздел Пользователи -->
+            <div id="managers-section" class="content-section hidden">
+                <div class="mdl-grid">
+                    <div class="mdl-cell mdl-cell--12-col">
+                        <p style="text-align: center; padding: 40px;">Загрузка данных...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Раздел Экспорт -->
+            <div id="export-section" class="content-section hidden">
+                <div class="mdl-grid">
+                    <div class="mdl-cell mdl-cell--12-col">
+                        <p style="text-align: center; padding: 40px;">Загрузка данных...</p>
                     </div>
                 </div>
             </div>
@@ -340,10 +237,10 @@
     </div>
     
     <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
-    <script src="/static/js/dashboard.js"></script>
-    <script src="/static/js/clients.js"></script>
-    <script src="/static/js/deadlines-manage.js"></script>
-    <script src="/static/js/deadline-types.js"></script>
-    <script src="/static/js/export.js"></script>
-</body>
-</html>
+    <script src="/static/js/date-utils.js"></script>
+    <script src="/static/js/dashboard.js?v=5.0&t=20260118_2145"></script>
+    <script src="/static/js/users.js?v=4.14&t=20251221_1220"></script>
+    <script src="/static/js/deadlines.js?v=5.0&t=20260118_2145"></script>
+    <script src="/static/js/deadline-types.js?v=4.9&t=20251212_2200"></script>
+    <script src="/static/js/managers.js?v=5.3delete"></script>
+    <script src="/static/js/export.js?v=4.9&t=20251212_2200"></script>

@@ -1,16 +1,9 @@
 """
 Deadline Management API Endpoints for KKT Services Expiration Management System
-
-This module provides CRUD operations for deadline management:
-- GET /api/deadlines - List deadlines with filtering and sorting
-- GET /api/deadlines/{id} - Get single deadline with details
-- POST /api/deadlines - Create new deadline
-- PUT /api/deadlines/{id} - Update existing deadline
-- DELETE /api/deadlines/{id} - Delete deadline
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, asc
 from typing import List
 from datetime import date, datetime
@@ -24,6 +17,8 @@ from backend.schemas import (
     DeadlineListResponse,
     MessageResponse
 )
+from backend.cache import cache
+from backend.api.dashboard import invalidate_dashboard_cache
 from backend.dependencies import (
     get_current_active_user,
     get_pagination_params,
@@ -33,7 +28,6 @@ from backend.dependencies import (
 )
 
 
-# Create API router
 router = APIRouter(prefix="/api/deadlines", tags=["Deadlines"])
 
 
@@ -44,60 +38,38 @@ async def list_deadlines(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Retrieve deadlines with filtering, sorting, and pagination
+    """Retrieve deadlines with filtering, sorting, and pagination"""
     
-    **Query Parameters:**
-    - page: Page number (default: 1)
-    - limit: Items per page (default: 50, max: 100)
-    - user_id: Filter by user ID (client) (optional)
-    - deadline_type_id: Filter by deadline type ID (optional)
-    - status: Filter by status color (green/yellow/red/expired) (optional)
-    - sort_by: Sort field (default: expiration_date)
-    - order: Sort order (asc/desc, default: asc)
-    
-    **Response:**
-    - total: Total number of matching deadlines
-    - page: Current page number
-    - limit: Items per page
-    - deadlines: Array of deadline objects with calculated fields
-    
-    **Calculated Fields:**
-    - days_until_expiration: Days remaining
-    - status_color: green (>14 days), yellow (7-14), red (<7), expired (<0)
-    
-    **Authentication:**
-    Requires valid JWT token
-    """
-    # Build base query with joins
-    query = db.query(Deadline)\
-              .join(User)\
-              .join(DeadlineType)
+    # Build base query
+    query = db.query(Deadline)
     
     # Apply filters
-    if filters.client_id:  # Legacy parameter name for backward compatibility
+    if filters.client_id:
         query = query.filter(Deadline.user_id == filters.client_id)
     
     if filters.deadline_type_id:
         query = query.filter(Deadline.deadline_type_id == filters.deadline_type_id)
     
-    # Filter by status color (calculated field)
+    # Filter by status color
     if filters.status:
         today = date.today()
         if filters.status == 'expired':
             query = query.filter(Deadline.expiration_date < today)
         elif filters.status == 'red':
+            from datetime import timedelta
             query = query.filter(
                 Deadline.expiration_date >= today,
-                Deadline.expiration_date < today.replace(day=today.day + 7)
+                Deadline.expiration_date < today + timedelta(days=7)
             )
         elif filters.status == 'yellow':
+            from datetime import timedelta
             query = query.filter(
-                Deadline.expiration_date >= today.replace(day=today.day + 7),
-                Deadline.expiration_date < today.replace(day=today.day + 14)
+                Deadline.expiration_date >= today + timedelta(days=7),
+                Deadline.expiration_date < today + timedelta(days=14)
             )
         elif filters.status == 'green':
-            query = query.filter(Deadline.expiration_date >= today.replace(day=today.day + 14))
+            from datetime import timedelta
+            query = query.filter(Deadline.expiration_date >= today + timedelta(days=14))
     
     # Get total count
     total = query.count()
@@ -109,21 +81,35 @@ async def list_deadlines(
     else:
         query = query.order_by(asc(sort_column))
     
-    # Apply pagination
-    deadlines = query.offset(pagination.offset).limit(pagination.limit).all()
+    # Apply pagination and eager load relationships
+    deadlines = query.options(
+        joinedload(Deadline.user),
+        joinedload(Deadline.deadline_type)
+    ).offset(pagination.offset).limit(pagination.limit).all()
     
-    # Convert to response with calculated fields
+    # Convert to response
     deadline_responses = []
     for deadline in deadlines:
         deadline_dict = deadline.to_dict()
         deadline_dict['days_until_expiration'] = deadline.days_until_expiration
         deadline_dict['status_color'] = deadline.status_color
+        
         # Populate user information
         if deadline.user:
             deadline_dict['user_name'] = deadline.user.display_name
             deadline_dict['company_name'] = deadline.user.company_name
-            deadline_dict['client_name'] = deadline.user.display_name  # Legacy field
-        deadline_dict['deadline_type_name'] = deadline.deadline_type.type_name if deadline.deadline_type else None
+            deadline_dict['client_name'] = deadline.user.display_name
+        else:
+            deadline_dict['user_name'] = None
+            deadline_dict['company_name'] = None
+            deadline_dict['client_name'] = None
+            
+        # Populate deadline type
+        if deadline.deadline_type:
+            deadline_dict['deadline_type_name'] = deadline.deadline_type.type_name
+        else:
+            deadline_dict['deadline_type_name'] = None
+            
         deadline_responses.append(DeadlineResponse(**deadline_dict))
     
     return DeadlineListResponse(
@@ -249,6 +235,7 @@ async def create_deadline(
     
     db.add(new_deadline)
     db.commit()
+    invalidate_dashboard_cache()  # Invalidate cache
     db.refresh(new_deadline)
     
     return MessageResponse(
@@ -336,6 +323,7 @@ async def update_deadline(
         setattr(deadline, field, value)
     
     db.commit()
+    invalidate_dashboard_cache()  # Invalidate cache
     db.refresh(deadline)
     
     return MessageResponse(
@@ -390,6 +378,7 @@ async def delete_deadline(
     # Delete deadline
     db.delete(deadline)
     db.commit()
+    invalidate_dashboard_cache()  # Invalidate cache
     
     return MessageResponse(
         message=f"Дедлайн удалён: {user_name} - {type_name}"
@@ -422,8 +411,7 @@ async def get_urgent_deadlines(
     
     # Получаем дедлайны, которые истекают в ближайшие N дней
     query = db.query(Deadline)\
-              .join(User)\
-              .join(DeadlineType)\
+              .options(joinedload(Deadline.user), joinedload(Deadline.deadline_type))\
               .filter(
                   Deadline.expiration_date >= today,
                   Deadline.expiration_date <= threshold_date,

@@ -4,6 +4,7 @@ Pydantic схемы для валидации запросов и ответов
 """
 from pydantic import BaseModel, Field
 from typing import Optional
+from datetime import datetime
 
 
 class LoginRequest(BaseModel):
@@ -62,6 +63,13 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class CodeGenerationResponse(BaseModel):
+    """Ответ генерации кода регистрации"""
+    code: str
+    expires_at: datetime
+    message: str
 
 
 class MessageResponse(BaseModel):

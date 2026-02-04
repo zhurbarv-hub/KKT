@@ -62,7 +62,7 @@ function renderClientDetails() {
         <span id="companyNameText">${clientData.name || 'Без названия'}</span>
         <i class="material-icons edit-company-icon" onclick="editCompanyName()" title="Редактировать название">edit</i>
     `;
-    
+
     const phoneInfo = clientData.phone ? ` | Телефон: ${clientData.phone}` : '';
     document.getElementById('clientInfo').textContent = `ИНН: ${clientData.inn || '-'} | Email: ${clientData.email || '-'}${phoneInfo}`;
 
@@ -70,12 +70,12 @@ function renderClientDetails() {
     const telegramStatus = document.getElementById('telegramStatus');
     const telegramStatusText = document.getElementById('telegramStatusText');
     const sendToTelegramBtn = document.getElementById('sendToTelegramBtn');
-    
+
     if (clientData.telegram_id) {
         telegramStatus.classList.remove('disconnected');
         telegramStatus.classList.add('connected');
         telegramStatusText.textContent = 'Подключен';
-        
+
         // Показываем кнопку отправки в Telegram
         if (sendToTelegramBtn) {
             sendToTelegramBtn.style.display = 'inline-flex';
@@ -88,10 +88,10 @@ function renderClientDetails() {
 
     // Сетка информации о клиенте
     const detailsGrid = document.getElementById('clientDetailsGrid');
-    
+
     // Формируем карточки с информацией
     let cardsHTML = '';
-    
+
     // Контактное лицо
     cardsHTML += `
         <div class="client-info-item editable-field" data-field="contact_person">
@@ -106,7 +106,7 @@ function renderClientDetails() {
             </div>
         </div>
     `;
-    
+
     // Телефон
     cardsHTML += `
         <div class="client-info-item editable-field" data-field="phone">
@@ -121,7 +121,7 @@ function renderClientDetails() {
             </div>
         </div>
     `;
-    
+
     // Email
     cardsHTML += `
         <div class="client-info-item editable-field" data-field="email">
@@ -136,7 +136,7 @@ function renderClientDetails() {
             </div>
         </div>
     `;
-    
+
     // Адрес
     cardsHTML += `
         <div class="client-info-item editable-field" data-field="address">
@@ -151,7 +151,7 @@ function renderClientDetails() {
             </div>
         </div>
     `;
-    
+
     // Примечания
     cardsHTML += `
         <div class="client-info-item editable-field" data-field="notes">
@@ -166,7 +166,7 @@ function renderClientDetails() {
             </div>
         </div>
     `;
-    
+
     // Telegram регистрация (только если не подключен)
     if (!clientData.telegram_id) {
         cardsHTML += `
@@ -197,14 +197,14 @@ function renderClientDetails() {
             </div>
         `;
     }
-    
+
     detailsGrid.innerHTML = cardsHTML;
-    
+
     // Добавление обработчиков для inline редактирования
     setTimeout(() => {
         const editableFields = document.querySelectorAll('.editable-field');
         editableFields.forEach(field => {
-            field.addEventListener('click', function() {
+            field.addEventListener('click', function () {
                 makeFieldEditable(field);
             });
         });
@@ -233,10 +233,11 @@ function renderCashRegisters() {
     console.log('=== Начало рендеринга касс ===');
     console.log('Всего ОФД провайдеров загружено:', ofdProviders.length);
     console.log('Список ОФД провайдеров:', ofdProviders);
-    
+
     // Создаём таблицу
     let html = `
-        <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp" style="width: 100%; border-collapse: collapse;">
+        <div class="table-wrapper">
+        <table class="mdl-data-table mdl-js-data-table" style="width: 100%;">
             <thead>
                 <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                     <th class="mdl-data-table__cell--non-numeric" style="padding: 12px; font-weight: 600; border: none;">Название ККТ</th>
@@ -249,29 +250,29 @@ function renderCashRegisters() {
             </thead>
             <tbody>
     `;
-    
+
     registers.forEach(reg => {
         // Находим название ОФД провайдера по ID
-        const ofdProvider = reg.ofd_provider_id 
+        const ofdProvider = reg.ofd_provider_id
             ? ofdProviders.find(p => p.id === reg.ofd_provider_id)
             : null;
         const ofdName = ofdProvider ? ofdProvider.name : '-';
-        
+
         // Форматирование дат
         const fnDate = reg.fn_expiry_date ? formatDateRU(reg.fn_expiry_date) : '-';
         const ofdDate = reg.ofd_expiry_date ? formatDateRU(reg.ofd_expiry_date) : '-';
-        
+
         // Определяем цвет строки в зависимости от срока
         let rowBgColor = 'white';
         if (reg.fn_expiry_date || reg.ofd_expiry_date) {
             const today = new Date();
             const fnExpiry = reg.fn_expiry_date ? new Date(reg.fn_expiry_date) : null;
             const ofdExpiry = reg.ofd_expiry_date ? new Date(reg.ofd_expiry_date) : null;
-            
+
             const fnDays = fnExpiry ? Math.floor((fnExpiry - today) / (1000 * 60 * 60 * 24)) : 999;
             const ofdDays = ofdExpiry ? Math.floor((ofdExpiry - today) / (1000 * 60 * 60 * 24)) : 999;
             const minDays = Math.min(fnDays, ofdDays);
-            
+
             if (minDays < 0) {
                 rowBgColor = '#ffebee'; // Просрочено - красный
             } else if (minDays <= 7) {
@@ -280,7 +281,7 @@ function renderCashRegisters() {
                 rowBgColor = '#fffde7'; // Внимание - жёлтый
             }
         }
-        
+
         html += `
             <tr data-register-id="${reg.id}" 
                 style="background: ${rowBgColor}; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" 
@@ -316,19 +317,20 @@ function renderCashRegisters() {
             </tr>
         `;
     });
-    
+
     html += `
             </tbody>
         </table>
+        </div>
     `;
 
     section.innerHTML = html;
-    
+
     // Добавление обработчиков клика на строки таблицы
     setTimeout(() => {
         const rows = document.querySelectorAll('#cashRegistersSection tr[data-register-id]');
         rows.forEach(row => {
-            row.addEventListener('click', function(e) {
+            row.addEventListener('click', function (e) {
                 // Проверяем, что клик не по кнопке удаления
                 if (!e.target.closest('button') && !e.target.closest('.mdl-button')) {
                     const registerId = parseInt(row.getAttribute('data-register-id'));
@@ -358,57 +360,94 @@ function renderRegisterDeadlines() {
         return;
     }
 
-    let html = '';
+    // Создаём таблицу
+    let html = `
+        <div class="table-wrapper">
+        <table class="mdl-data-table mdl-js-data-table" style="width: 100%;">
+            <thead>
+                <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <th class="mdl-data-table__cell--non-numeric" style="padding: 12px; font-weight: 600; border: none;">Название ККТ</th>
+                    <th class="mdl-data-table__cell--non-numeric" style="padding: 12px; font-weight: 600; border: none;">Тип дедлайна</th>
+                    <th class="mdl-data-table__cell--non-numeric" style="padding: 12px; font-weight: 600; border: none;">Адрес ККТ</th>
+                    <th class="mdl-data-table__cell--non-numeric" style="padding: 12px; font-weight: 600; border: none;">Дата истечения</th>
+                    <th class="mdl-data-table__cell--non-numeric" style="padding: 12px; font-weight: 600; border: none; text-align: center;">Остаток дней</th>
+                    <th class="mdl-data-table__cell--non-numeric" style="padding: 12px; font-weight: 600; text-align: center; border: none;">Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
     deadlines.forEach(dl => {
-        const statusClass = `status-${dl.status_color}`;
-        const badgeClass = `badge-${dl.status_color}`;
-        const daysText = dl.days_until_expiration < 0 
-            ? `Просрочено на ${Math.abs(dl.days_until_expiration)} дн.`
-            : `Осталось ${dl.days_until_expiration} дн.`;
+        // Определяем цвет строки в зависимости от срока
+        let rowBgColor = 'white';
+        if (dl.days_until_expiration < 0) {
+            rowBgColor = '#ffebee'; // Просрочено - красный
+        } else if (dl.days_until_expiration <= 7) {
+            rowBgColor = '#fff3e0'; // Критично - оранжевый
+        } else if (dl.days_until_expiration <= 14) {
+            rowBgColor = '#fffde7'; // Внимание - жёлтый
+        }
+
+        const daysText = dl.days_until_expiration < 0
+            ? `<span style="color: #d32f2f; font-weight: 600;">Просрочено на ${Math.abs(dl.days_until_expiration)} дн.</span>`
+            : `<span style="font-weight: 600;">${dl.days_until_expiration} дн.</span>`;
 
         html += `
-            <div class="deadline-item ${statusClass}" data-deadline-id="${dl.deadline_id}" data-deadline-type="register">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="flex: 1;">
-                        <strong>${dl.deadline_type_name}</strong>
-                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
-                            <i class="material-icons" style="font-size: 14px; vertical-align: middle;">point_of_sale</i>
-                            ${dl.cash_register_name}
-                        </div>
-                        ${dl.installation_address ? `
-                        <div style="font-size: 12px; color: #888; margin-top: 2px;">
-                            <i class="material-icons" style="font-size: 14px; vertical-align: middle;">place</i>
+            <tr data-deadline-id="${dl.deadline_id}" 
+                style="background: ${rowBgColor}; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" 
+                onmouseover="this.style.transform='scale(1.01)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
+                onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
+                <td class="mdl-data-table__cell--non-numeric" style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
+                    <div style="font-weight: 600; color: #333;">
+                        <i class="material-icons" style="font-size: 16px; vertical-align: middle; color: #666;">point_of_sale</i>
+                        ${dl.cash_register_name || 'Касса'}
+                    </div>
+                </td>
+                <td class="mdl-data-table__cell--non-numeric" style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
+                    <span style="font-weight: 500; color: #555;">${dl.deadline_type_name}</span>
+                </td>
+                <td class="mdl-data-table__cell--non-numeric" style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
+                    ${dl.installation_address ? `
+                        <div style="font-size: 13px; color: #666;">
+                            <i class="material-icons" style="font-size: 14px; vertical-align: middle; color: #999;">place</i>
                             ${dl.installation_address}
                         </div>
-                        ` : ''}
+                    ` : '<span style="color: #999;">-</span>'}
+                </td>
+                <td class="mdl-data-table__cell--non-numeric" style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <i class="material-icons" style="font-size: 16px; color: #666;">event</i>
+                        <span style="font-weight: 500;">${formatDateRU(dl.expiration_date)}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="badge ${badgeClass}">${daysText}</span>
-                        <button class="mdl-button mdl-js-button mdl-button--icon" onclick="deleteDeadline(${dl.deadline_id})" title="Удалить">
-                            <i class="material-icons" style="font-size: 18px;">delete</i>
-                        </button>
-                    </div>
-                </div>
-                <div style="font-size: 13px; color: #555;">
-                    <i class="material-icons" style="font-size: 14px; vertical-align: middle;">event</i>
-                    ${formatDateRU(dl.expiration_date)}
-                </div>
-                ${dl.notes ? `<div style="font-size: 12px; color: #777; margin-top: 4px;">${dl.notes}</div>` : ''}
-            </div>
+                </td>
+                <td class="mdl-data-table__cell--non-numeric" style="padding: 12px; text-align: center; border-bottom: 1px solid #e0e0e0;">
+                    ${daysText}
+                </td>
+                <td class="mdl-data-table__cell--non-numeric" style="padding: 12px; text-align: center; border-bottom: 1px solid #e0e0e0;">
+                    <button class="mdl-button mdl-js-button mdl-button--icon" onclick="event.stopPropagation(); deleteDeadline(${dl.deadline_id})" title="Удалить">
+                        <i class="material-icons" style="color: #dc3545;">delete</i>
+                    </button>
+                </td>
+            </tr>
         `;
     });
 
+    html += `
+            </tbody>
+        </table>
+        </div>
+    `;
+
     section.innerHTML = html;
-    
-    // Добавление обработчиков клика на дедлайны по кассам
+
+    // Добавление обработчиков клика на строки таблицы
     setTimeout(() => {
-        const deadlineItems = document.querySelectorAll('#registerDeadlinesSection .deadline-item');
-        deadlineItems.forEach(item => {
-            item.style.cursor = 'pointer';
-            item.addEventListener('click', function(e) {
+        const rows = document.querySelectorAll('#registerDeadlinesSection tr[data-deadline-id]');
+        rows.forEach(row => {
+            row.addEventListener('click', function (e) {
                 // Проверяем, что клик не по кнопке удаления
                 if (!e.target.closest('button') && !e.target.closest('.mdl-button')) {
-                    const deadlineId = parseInt(item.getAttribute('data-deadline-id'));
+                    const deadlineId = parseInt(row.getAttribute('data-deadline-id'));
                     editDeadline(deadlineId, 'register');
                 }
             });
@@ -433,7 +472,7 @@ function renderGeneralDeadlines() {
     deadlines.forEach(dl => {
         const statusClass = `status-${dl.status_color}`;
         const badgeClass = `badge-${dl.status_color}`;
-        const daysText = dl.days_until_expiration < 0 
+        const daysText = dl.days_until_expiration < 0
             ? `Просрочено на ${Math.abs(dl.days_until_expiration)} дн.`
             : `Осталось ${dl.days_until_expiration} дн.`;
 
@@ -458,13 +497,13 @@ function renderGeneralDeadlines() {
     });
 
     section.innerHTML = html;
-    
+
     // Добавление обработчиков клика на общие дедлайны
     setTimeout(() => {
         const deadlineItems = document.querySelectorAll('#generalDeadlinesSection .deadline-item');
         deadlineItems.forEach(item => {
             item.style.cursor = 'pointer';
-            item.addEventListener('click', function(e) {
+            item.addEventListener('click', function (e) {
                 // Проверяем, что клик не по кнопке удаления
                 if (!e.target.closest('button') && !e.target.closest('.mdl-button')) {
                     const deadlineId = parseInt(item.getAttribute('data-deadline-id'));
@@ -481,19 +520,19 @@ function renderGeneralDeadlines() {
 function makeFieldEditable(fieldElement) {
     const fieldName = fieldElement.getAttribute('data-field');
     const currentValue = clientData[fieldName] || '';
-    
+
     // Находим контейнер со значением
     const valueContainer = fieldElement.querySelector('.client-info-value');
     if (!valueContainer) {
         console.error('Не найден контейнер .client-info-value');
         return;
     }
-    
+
     // Если это уже input, ничего не делаем
     if (valueContainer.querySelector('input') || valueContainer.querySelector('textarea')) {
         return;
     }
-    
+
     let inputElement;
     if (fieldName === 'notes' || fieldName === 'address') {
         // Для больших полей используем textarea
@@ -518,24 +557,24 @@ function makeFieldEditable(fieldElement) {
         inputElement.style.fontSize = 'inherit';
         inputElement.style.boxSizing = 'border-box';
     }
-    
+
     inputElement.value = currentValue;
-    
+
     // Заменяем содержимое valueContainer на input
     valueContainer.innerHTML = '';
     valueContainer.appendChild(inputElement);
     inputElement.focus();
     inputElement.select();
-    
+
     // Обработчик потери фокуса
-    inputElement.addEventListener('blur', async function() {
+    inputElement.addEventListener('blur', async function () {
         const newValue = inputElement.value.trim();
         await saveClientField(fieldName, newValue, fieldElement);
     });
-    
+
     // Обработчик Enter (кроме textarea)
     if (inputElement.tagName !== 'TEXTAREA') {
-        inputElement.addEventListener('keydown', function(e) {
+        inputElement.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 inputElement.blur();
             } else if (e.key === 'Escape') {
@@ -554,7 +593,7 @@ function makeFieldEditable(fieldElement) {
         });
     } else {
         // Для textarea только Escape
-        inputElement.addEventListener('keydown', function(e) {
+        inputElement.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 const oldValue = clientData[fieldName];
                 valueContainer.innerHTML = oldValue || (fieldName === 'notes' ? 'Нет примечаний' : 'Не указано');
@@ -569,7 +608,7 @@ async function saveClientField(fieldName, newValue, fieldElement) {
         const updateData = {
             [fieldName]: newValue || null
         };
-        
+
         const response = await fetch(`${API_BASE}/users/${currentUserId}`, {
             method: 'PUT',
             headers: {
@@ -578,15 +617,15 @@ async function saveClientField(fieldName, newValue, fieldElement) {
             },
             body: JSON.stringify(updateData)
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Ошибка сохранения');
         }
-        
+
         // Обновляем локальные данные
         clientData[fieldName] = newValue || null;
-        
+
         // Восстанавливаем отображение с правильной HTML-структурой
         const valueContainer = fieldElement.querySelector('.client-info-value');
         if (valueContainer) {
@@ -599,9 +638,9 @@ async function saveClientField(fieldName, newValue, fieldElement) {
             } else {
                 displayValue = newValue || (fieldName === 'notes' ? 'Нет примечаний' : 'Не указано');
             }
-            
+
             valueContainer.innerHTML = displayValue;
-            
+
             // Обновляем класс empty при необходимости
             if (!newValue) {
                 valueContainer.classList.add('empty');
@@ -610,13 +649,13 @@ async function saveClientField(fieldName, newValue, fieldElement) {
             }
         }
         fieldElement.style.cursor = 'pointer';
-        
+
         // Обновляем заголовок если изменился телефон
         if (fieldName === 'phone') {
             const phoneInfo = clientData.phone ? ` | Телефон: ${clientData.phone}` : '';
             document.getElementById('clientInfo').textContent = `ИНН: ${clientData.inn || '-'} | Email: ${clientData.email || '-'}${phoneInfo}`;
         }
-        
+
         // Показываем уведомление об успехе
         showNotification('Изменения сохранены');
     } catch (error) {
@@ -659,9 +698,9 @@ function showNotification(message) {
     notification.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
     notification.style.zIndex = '10000';
     notification.style.fontSize = '14px';
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
         notification.style.transition = 'opacity 0.3s';
         notification.style.opacity = '0';
@@ -683,31 +722,31 @@ async function generateTelegramCode() {
                 'Authorization': `Bearer ${getToken()}`
             }
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Ошибка генерации кода');
         }
-        
+
         const result = await response.json();
-        
+
         // Извлекаем код из сообщения (формат: "Код регистрации: XXXXX (действителен 24 часа)")
         const codeMatch = result.message.match(/Код регистрации: ([A-Z0-9]+)/);
         if (codeMatch && codeMatch[1]) {
             const code = codeMatch[1];
-            
+
             // Отображаем код в новой структуре
             const codeDisplay = document.getElementById('telegramCodeDisplay');
             const codeBlock = document.getElementById('telegramCodeBlock');
             const copyButton = document.getElementById('copyCodeButton');
-            
+
             if (codeDisplay && codeBlock && copyButton) {
                 codeDisplay.textContent = code;
                 codeBlock.style.display = 'flex';
-                
+
                 // Сохраняем код для копирования
                 window.currentTelegramCode = code;
-                
+
                 showNotification('Код успешно сгенерирован. Отправьте его боту в Telegram. Код действителен 72 часа.');
             }
         } else {
@@ -725,7 +764,7 @@ async function copyTelegramCode() {
         alert('Код не сгенерирован');
         return;
     }
-    
+
     try {
         await navigator.clipboard.writeText(window.currentTelegramCode);
         showNotification('Код скопирован в буфер обмена');
@@ -754,7 +793,7 @@ async function copyTelegramCode() {
 function handleRnInput(input, nextFieldId) {
     // Разрешаем только цифры
     input.value = input.value.replace(/[^0-9]/g, '');
-    
+
     // Автоматический переход на следующее поле
     if (input.value.length === 4 && nextFieldId) {
         document.getElementById(nextFieldId).focus();
@@ -773,19 +812,19 @@ function handleRnBackspace(event, prevFieldId) {
 function handleRnPaste(event) {
     event.preventDefault();
     const pasteData = event.clipboardData.getData('text').replace(/[^0-9]/g, '');
-    
+
     if (pasteData.length > 0) {
         // Распределяем цифры по полям
         const part1 = pasteData.substring(0, 4);
         const part2 = pasteData.substring(4, 8);
         const part3 = pasteData.substring(8, 12);
         const part4 = pasteData.substring(12, 16);
-        
+
         document.getElementById('rnPart1').value = part1;
         if (part2) document.getElementById('rnPart2').value = part2;
         if (part3) document.getElementById('rnPart3').value = part3;
         if (part4) document.getElementById('rnPart4').value = part4;
-        
+
         // Фокус на последнем заполненном поле
         if (part4) {
             document.getElementById('rnPart4').focus();
@@ -805,7 +844,7 @@ function getRnValue() {
     const part2 = document.getElementById('rnPart2').value;
     const part3 = document.getElementById('rnPart3').value;
     const part4 = document.getElementById('rnPart4').value;
-    
+
     const fullRn = part1 + part2 + part3 + part4;
     return fullRn || null;
 }
@@ -829,11 +868,11 @@ async function loadOFDProviders() {
                 'Authorization': `Bearer ${getToken()}`
             }
         });
-        
+
         if (!response.ok) {
             throw new Error(`Ошибка: ${response.status}`);
         }
-        
+
         ofdProviders = await response.json();
         console.log('Загружено ОФД провайдеров:', ofdProviders.length);
     } catch (error) {
@@ -847,7 +886,7 @@ function showAddRegisterDialog() {
     document.getElementById('registerDialogTitle').textContent = 'Добавить кассовый аппарат';
     document.getElementById('registerForm').reset();
     document.getElementById('registerId').value = '';
-    
+
     // Заполняем список ОФД провайдеров
     const ofdSelect = document.getElementById('ofdProvider');
     ofdSelect.innerHTML = '<option value="">Не выбран</option>';
@@ -857,7 +896,7 @@ function showAddRegisterDialog() {
         option.textContent = provider.name;  // Используем поле 'name' вместо 'provider_name'
         ofdSelect.appendChild(option);
     });
-    
+
     registerDialog.showModal();
 }
 
@@ -880,7 +919,7 @@ function editRegister(registerId) {
     document.getElementById('registerNotes').value = register.notes || '';
     document.getElementById('fnReplacementDate').value = register.fn_expiry_date || '';  // fn_expiry_date вместо fn_replacement_date
     document.getElementById('ofdRenewalDate').value = register.ofd_expiry_date || '';  // ofd_expiry_date вместо ofd_renewal_date
-    
+
     // Заполняем список ОФД провайдеров и устанавливаем выбранный
     const ofdSelect = document.getElementById('ofdProvider');
     ofdSelect.innerHTML = '<option value="">Не выбран</option>';
@@ -893,12 +932,12 @@ function editRegister(registerId) {
         }
         ofdSelect.appendChild(option);
     });
-    
+
     // Обновляем MDL textfield
     document.querySelectorAll('#registerForm .mdl-textfield').forEach(field => {
         field.MaterialTextfield.checkDirty();
     });
-    
+
     registerDialog.showModal();
 }
 
@@ -940,7 +979,7 @@ async function saveRegister() {
 
     try {
         console.log('Отправка данных кассы:', data);
-        
+
         let response;
         if (registerId) {
             // Редактирование
@@ -971,14 +1010,14 @@ async function saveRegister() {
             try {
                 const errorData = await response.json();
                 console.log('Данные ошибки:', errorData);
-                
+
                 if (errorData.detail) {
                     // FastAPI возвращает ошибки в поле detail
                     if (typeof errorData.detail === 'string') {
                         errorMessage = errorData.detail;
                     } else if (Array.isArray(errorData.detail)) {
                         // Pydantic validation errors
-                        errorMessage = errorData.detail.map(err => 
+                        errorMessage = errorData.detail.map(err =>
                             `${err.loc.join('.')}: ${err.msg}`
                         ).join(', ');
                     } else {
@@ -1006,13 +1045,13 @@ async function saveRegister() {
 
         const result = await response.json();
         console.log('Касса успешно сохранена:', result);
-        
+
         registerDialog.close();
         await loadClientDetails(); // Перезагрузка данных
         alert(registerId ? 'Касса успешно обновлена' : 'Касса успешно добавлена');
     } catch (error) {
         console.error('Ошибка сохранения кассы:', error);
-        
+
         let errorMessage = 'Неизвестная ошибка';
         if (error.message) {
             errorMessage = error.message;
@@ -1025,7 +1064,7 @@ async function saveRegister() {
         } else {
             errorMessage = String(error);
         }
-        
+
         alert(`Ошибка при сохранении кассы: ${errorMessage}`);
     }
 }
@@ -1099,19 +1138,19 @@ function showAddRegisterDeadlineDialog() {
 // Редактировать дедлайн
 function editDeadline(deadlineId, deadlineType) {
     let deadline = null;
-    
+
     // Найти дедлайн в соответствующем массиве
     if (deadlineType === 'register') {
         deadline = clientData.register_deadlines.find(d => d.deadline_id === deadlineId);
     } else {
         deadline = clientData.general_deadlines.find(d => d.deadline_id === deadlineId);
     }
-    
+
     if (!deadline) {
         alert('Дедлайн не найден');
         return;
     }
-    
+
     // Преобразуем данные дедлайна в формат, аналогичный API
     const deadlineData = {
         id: deadlineId,
@@ -1122,7 +1161,7 @@ function editDeadline(deadlineId, deadlineType) {
         notification_enabled: deadline.notification_enabled !== false,
         notes: deadline.notes || ''
     };
-    
+
     const modal = createDeadlineModal('edit', deadlineData);
     document.body.appendChild(modal);
     setTimeout(() => {
@@ -1134,16 +1173,20 @@ function editDeadline(deadlineId, deadlineType) {
 function createDeadlineModal(mode, deadline = {}) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Редактирование дедлайна' : 'Добавить дедлайн';
-    
+
     const modalDiv = document.createElement('div');
     modalDiv.className = 'modal-overlay';
+    modalDiv.style.zIndex = '999999';
     modalDiv.innerHTML = `
         <div class="modal" style="width: 600px; max-width: 90vw; border-radius: 12px; padding: 0; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px 12px 0 0;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                 <h3 style="margin: 0; font-size: 20px; font-weight: 500;">
                     <i class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 24px;">event</i>
                     ${title}
                 </h3>
+                <button class="close-btn" onclick="closeDeadlineModal(this)">
+                    <i class="material-icons">close</i>
+                </button>
             </div>
             <div class="modal-body" style="padding: 24px; max-height: 70vh; overflow-y: auto;">
                 <form id="deadlineForm" onsubmit="submitDeadlineForm(event, '${mode}', ${deadline.id || 'null'})">
@@ -1253,13 +1296,13 @@ function createDeadlineModal(mode, deadline = {}) {
             </div>
         </div>
     `;
-    
+
     // Загружаем списки типов и касс
     setTimeout(() => {
         loadDeadlineTypesForModal(deadline.deadline_type_id);
         loadCashRegistersForModal(deadline.cash_register_id);
     }, 50);
-    
+
     return modalDiv;
 }
 
@@ -1267,7 +1310,7 @@ function createDeadlineModal(mode, deadline = {}) {
 function loadDeadlineTypesForModal(selectedId) {
     const select = document.getElementById('deadline_type_id');
     if (!select) return;
-    
+
     select.innerHTML = '<option value="">Выберите тип услуги</option>';
     deadlineTypes.forEach(type => {
         const option = document.createElement('option');
@@ -1284,7 +1327,7 @@ function loadDeadlineTypesForModal(selectedId) {
 function loadCashRegistersForModal(selectedId) {
     const select = document.getElementById('cash_register_id');
     if (!select) return;
-    
+
     select.innerHTML = '<option value="">Общий дедлайн (не привязан к кассе)</option>';
     if (clientData.cash_registers) {
         clientData.cash_registers.forEach(reg => {
@@ -1306,12 +1349,12 @@ function loadCashRegistersForModal(selectedId) {
 function updateCashRegisterModelField() {
     const cashRegisterSelect = document.getElementById('cash_register_id');
     const modelInput = document.getElementById('cash_register_model');
-    
+
     if (!cashRegisterSelect || !modelInput) return;
-    
+
     const selectedOption = cashRegisterSelect.options[cashRegisterSelect.selectedIndex];
     const model = selectedOption.getAttribute('data-model') || '';
-    
+
     if (cashRegisterSelect.value) {
         // Если выбрана касса, автоматически заполняем модель
         modelInput.value = model;
@@ -1331,7 +1374,7 @@ function closeDeadlineModal(element) {
 // Отправка формы дедлайна
 async function submitDeadlineForm(event, mode, deadlineId) {
     event.preventDefault();
-    
+
     const formData = {
         client_id: clientData.id,
         deadline_type_id: parseInt(document.getElementById('deadline_type_id').value),
@@ -1343,13 +1386,13 @@ async function submitDeadlineForm(event, mode, deadlineId) {
         notes: document.getElementById('notes').value || '',
         status: 'active'
     };
-    
+
     console.log('Отправка формы дедлайна:', mode, formData);
-    
+
     const token = getToken();
     const url = mode === 'edit' ? `${API_BASE}/deadlines/${deadlineId}` : `${API_BASE}/deadlines`;
     const method = mode === 'edit' ? 'PUT' : 'POST';
-    
+
     try {
         const response = await fetch(url, {
             method: method,
@@ -1359,19 +1402,19 @@ async function submitDeadlineForm(event, mode, deadlineId) {
             },
             body: JSON.stringify(formData)
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Ошибка сохранения');
         }
-        
+
         // Закрыть модальное окно
         const modal = document.querySelector('.modal-overlay');
         if (modal) {
             modal.classList.remove('show');
             setTimeout(() => modal.remove(), 300);
         }
-        
+
         // Перезагрузить данные клиента
         await loadClientDetails();
         alert(mode === 'edit' ? 'Дедлайн успешно обновлен' : 'Дедлайн успешно добавлен');
@@ -1414,32 +1457,32 @@ async function sendDeadlinesToTelegram() {
         alert('Не удалось определить ID клиента');
         return;
     }
-    
+
     // Проверяем, подключен ли Telegram
     if (!clientData.telegram_id) {
         alert('Клиент не подключен к Telegram');
         return;
     }
-    
+
     // Подтверждение отправки
     const clientName = clientData.company_name || clientData.full_name || 'клиенту';
     const totalDeadlines = (clientData.register_deadlines?.length || 0) + (clientData.general_deadlines?.length || 0);
-    
+
     if (totalDeadlines === 0) {
         alert('У клиента нет активных дедлайнов для отправки');
         return;
     }
-    
+
     if (!confirm(`Отправить ${totalDeadlines} дедлайн(ов) клиенту ${clientName} в Telegram?`)) {
         return;
     }
-    
+
     // Отключаем кнопку и показываем индикатор загрузки
     const btn = document.getElementById('sendToTelegramBtn');
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 6px;">hourglass_empty</i>Отправка...';
-    
+
     try {
         const response = await fetch(`${API_BASE}/users/${currentUserId}/send-deadlines-telegram`, {
             method: 'POST',
@@ -1448,28 +1491,28 @@ async function sendDeadlinesToTelegram() {
                 'Authorization': `Bearer ${getToken()}`
             }
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Ошибка отправки');
         }
-        
+
         const result = await response.json();
-        
+
         // Успех
         showNotification(result.message || 'Дедлайны успешно отправлены в Telegram!');
-        
+
         // Возвращаем кнопку в исходное состояние с галочкой
         btn.innerHTML = '<i class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 6px;">check</i>Отправлено';
         setTimeout(() => {
             btn.innerHTML = originalText;
             btn.disabled = false;
         }, 2000);
-        
+
     } catch (error) {
         console.error('Ошибка отправки дедлайнов:', error);
         alert(`Ошибка: ${error.message}`);
-        
+
         // Возвращаем кнопку в исходное состояние
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -1477,7 +1520,7 @@ async function sendDeadlinesToTelegram() {
 }
 
 // Обработчики кнопок
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Проверка авторизации
     if (!getToken()) {
         window.location.href = '/static/login.html';
@@ -1491,7 +1534,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Кнопка выхода
-    document.getElementById('sidebarLogoutBtn').addEventListener('click', function() {
+    document.getElementById('sidebarLogoutBtn').addEventListener('click', function () {
         logout();
         window.location.href = '/static/login.html';
     });
@@ -1508,10 +1551,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('saveRegisterBtn').addEventListener('click', saveRegister);
 
     // Кнопки закрытия диалогов
-    document.getElementById('closeRegisterDialog').addEventListener('click', function() {
+    document.getElementById('closeRegisterDialog').addEventListener('click', function () {
         registerDialog.close();
     });
-    
+
     // Кнопка отправки в Telegram
     const sendToTelegramBtn = document.getElementById('sendToTelegramBtn');
     if (sendToTelegramBtn) {
@@ -1533,27 +1576,27 @@ document.addEventListener('DOMContentLoaded', function() {
 function editCompanyName() {
     const companyNameText = document.getElementById('companyNameText');
     const currentName = clientData.name || '';
-    
+
     // Создаём input для редактирования
     const input = document.createElement('input');
     input.type = 'text';
     input.value = currentName;
     input.className = 'company-name-input';
     input.style.maxWidth = '600px';
-    
+
     // Заменяем текст на input
     companyNameText.replaceWith(input);
     input.focus();
     input.select();
-    
+
     // Обработчик потери фокуса
-    input.addEventListener('blur', async function() {
+    input.addEventListener('blur', async function () {
         const newName = input.value.trim();
         await saveCompanyName(newName, input);
     });
-    
+
     // Обработчик Enter
-    input.addEventListener('keydown', function(e) {
+    input.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             input.blur();
         } else if (e.key === 'Escape') {
@@ -1574,7 +1617,7 @@ async function saveCompanyName(newName, inputElement) {
         restoreCompanyNameDisplay(clientData.name || 'Без названия', inputElement);
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_BASE}/users/${currentUserId}`, {
             method: 'PUT',
@@ -1584,23 +1627,23 @@ async function saveCompanyName(newName, inputElement) {
             },
             body: JSON.stringify({ company_name: newName })
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Ошибка сохранения');
         }
-        
+
         // Обновляем локальные данные
         clientData.name = newName;
-        
+
         // Восстанавливаем отображение с иконкой редактирования
         restoreCompanyNameDisplay(newName, inputElement);
-        
+
         showNotification('Название компании успешно обновлено');
     } catch (error) {
         console.error('Ошибка сохранения названия:', error);
         alert(`Ошибка: ${error.message}`);
-        
+
         // Возвращаем старое значение
         restoreCompanyNameDisplay(clientData.name || 'Без названия', inputElement);
     }

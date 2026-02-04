@@ -26,7 +26,7 @@ from ..models.user_schemas import (
     TelegramRegistrationRequest,
     TelegramRegistrationResponse
 )
-from ..models.schemas import MessageResponse
+from ..models.schemas import MessageResponse, CodeGenerationResponse
 from ..services.auth_service import get_password_hash, decode_token, create_access_token
 from ..services.email_service import EmailService
 from ..services.env_manager import env_manager
@@ -498,7 +498,7 @@ async def delete_user(
     )
 
 
-@router.post("/{user_id}/generate-code", response_model=MessageResponse)
+@router.post("/{user_id}/generate-code", response_model=CodeGenerationResponse)
 async def generate_telegram_code(
     user_id: int,
     db: Session = Depends(get_db),
@@ -552,11 +552,11 @@ async def generate_telegram_code(
     db.commit()
     db.refresh(user)
     
-    return MessageResponse(
-        message=f"Код регистрации: {code} (действителен 72 часа)",
-        id=user.id
+    return CodeGenerationResponse(
+        code=code,
+        expires_at=user.code_expires_at,
+        message=f"Код регистрации: {code} (действителен 72 часа)"
     )
-
 
 @router.post("/resend-invitation", response_model=InvitationResponse)
 async def resend_invitation(

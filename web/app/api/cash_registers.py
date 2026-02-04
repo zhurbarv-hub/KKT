@@ -105,6 +105,22 @@ async def list_cash_registers(
     return registers
 
 
+
+
+@router.get("/client/{client_id}", response_model=List[CashRegisterResponse])
+async def get_cash_registers_by_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Получить список кассовых аппаратов клиента"""
+    registers = db.query(CashRegister).filter(
+        CashRegister.client_id == client_id,
+        CashRegister.is_active == True
+    ).all()
+    
+    return registers
+
 @router.get("/{register_id}", response_model=CashRegisterResponse)
 async def get_cash_register(
     register_id: int,

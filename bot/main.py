@@ -1,6 +1,8 @@
 """
 Главный модуль запуска Telegram бота
 Инициализация бота, диспетчера, middleware, API клиента и запуск polling
+
+Обновлено: Redis storage для FSM состояний
 """
 import asyncio
 import logging
@@ -40,6 +42,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# Redis configuration
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+REDIS_DB = int(os.getenv('REDIS_DB', 1))  # Use DB 1 for bot FSM
+
+
 def create_bot() -> Bot:
     """
     Создание экземпляра бота с валидированной конфигурацией
@@ -56,13 +64,28 @@ def create_bot() -> Bot:
 def create_dispatcher() -> Dispatcher:
     """
     Создание диспетчера для обработки обновлений
-    Инициализирует FSM storage для работы с состояниями
+    Использует Redis storage для персистентных FSM состояний
     
     Returns:
         Dispatcher: Настроенный диспетчер
     """
-    from aiogram.fsm.storage.memory import MemoryStorage
-    storage = MemoryStorage()
+    try:
+        from aiogram.fsm.storage.redis import RedisStorage
+        from redis.asyncio import Redis
+        
+        redis_client = Redis(
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_DB,
+            decode_responses=True
+        )
+        storage = RedisStorage(redis=redis_client)
+        logger.info(f"✅ Redis FSM storage инициализирован ({REDIS_HOST}:{REDIS_PORT}, db={REDIS_DB})")
+    except Exception as e:
+        logger.warning(f"⚠️ Redis недоступен, используем MemoryStorage: {e}")
+        from aiogram.fsm.storage.memory import MemoryStorage
+        storage = MemoryStorage()
+    
     return Dispatcher(storage=storage)
 
 
@@ -197,6 +220,7 @@ async def main():
         logger.info(f"⏰ Время проверки: {bot_config.notification_check_time} ({bot_config.notification_timezone})")
         logger.info(f"📅 Дни уведомлений: {', '.join(map(str, bot_config.notification_days_list))}")
         logger.info(f"🔌 Web API: {settings.web_api_base_url}")
+        logger.info(f"🗄️ FSM Storage: Redis ({REDIS_HOST}:{REDIS_PORT})")
         logger.info("=" * 60)
         logger.info("📋 Доступные команды:")
         logger.info("Общие: /start, /help, /next, /list, /today, /week")
@@ -226,6 +250,11 @@ async def main():
         # Закрываем API клиент
         await api_client.close()
         logger.info("✅ API клиент закрыт")
+        
+        # Закрываем Redis storage если используется
+        if hasattr(dp.storage, 'redis'):
+            await dp.storage.redis.close()
+            logger.info("✅ Redis storage закрыт")
         
         await bot.session.close()
         logger.info("✅ Бот остановлен")

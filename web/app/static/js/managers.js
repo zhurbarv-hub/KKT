@@ -15,7 +15,7 @@ const managersSection = document.getElementById('managers-section');
 async function loadManagersData() {
     try {
         const token = localStorage.getItem('access_token');
-        
+
         // Загружаем всех пользователей с ролями admin и manager
         const response = await fetch(`${API_BASE_URL}/users?page=1&page_size=50`, {
             headers: {
@@ -33,10 +33,10 @@ async function loadManagersData() {
         }
 
         const data = await response.json();
-        
+
         // Фильтруем пользователей с ролями admin и manager
         const staffUsers = (data.users || []).filter(u => ['admin', 'manager'].includes(u.role));
-        
+
         renderManagersTable(staffUsers);
         renderManagersPagination(data);
     } catch (error) {
@@ -58,7 +58,8 @@ function renderManagersTable(users) {
             </button>
         </div>
         <div class="mdl-card mdl-shadow--2dp" style="width: 100%;">
-            <table class="mdl-data-table mdl-js-data-table" style="width: 100%;">
+            <div class="table-wrapper">
+                <table class="mdl-data-table mdl-js-data-table">
                 <thead>
                     <tr>
                         <th>ФИО</th>
@@ -76,18 +77,12 @@ function renderManagersTable(users) {
                             <td>${user.email || '-'}</td>
                             <td>${user.phone || '-'}</td>
                             <td>
-                                <span style="background: ${user.role === 'admin' ? '#667eea' : '#4facfe'}; 
-                                             color: white; 
-                                             padding: 4px 12px; 
-                                             border-radius: 4px; 
-                                             font-size: 12px;">
+                                <span class="status-pill ${user.role === 'admin' ? 'status-pill--info' : 'status-pill--warning'}">
                                     ${getRoleLabel(user.role)}
                                 </span>
                             </td>
                             <td>
-                                <span style="background: ${user.is_active ? '#d4edda' : '#f8d7da'}; 
-                                             color: ${user.is_active ? '#155724' : '#721c24'}; 
-                                             padding: 4px 8px; border-radius: 4px;">
+                                <span class="status-pill ${user.is_active ? 'status-pill--success' : 'status-pill--muted'}">
                                     ${user.is_active ? 'Активен' : 'Неактивен'}
                                 </span>
                             </td>
@@ -101,33 +96,34 @@ function renderManagersTable(users) {
                         </tr>
                     `}
                 </tbody>
-            </table>
+                </table>
+            </div>
         </div>
         <div id="managersPagination" style="margin-top: 20px; text-align: center;"></div>
     `;
-    
+
     managersSection.innerHTML = tableHTML;
-    
+
     // Добавляем обработчики кликов на строки
     setTimeout(() => {
         const managerRows = document.querySelectorAll('.manager-row');
         managerRows.forEach(row => {
             const userId = parseInt(row.getAttribute('data-user-id'));
-            
-            row.addEventListener('click', function() {
+
+            row.addEventListener('click', function () {
                 editManager(userId);
             });
-            
-            row.addEventListener('mouseenter', function() {
+
+            row.addEventListener('mouseenter', function () {
                 row.style.backgroundColor = '#f5f5f5';
             });
-            
-            row.addEventListener('mouseleave', function() {
+
+            row.addEventListener('mouseleave', function () {
                 row.style.backgroundColor = '';
             });
         });
     }, 100);
-    
+
     // Обновляем MDL компоненты
     if (typeof componentHandler !== 'undefined') {
         componentHandler.upgradeDom();
@@ -159,9 +155,9 @@ function formatDateTime(dateString) {
 function renderManagersPagination(data) {
     const paginationDiv = document.getElementById('managersPagination');
     if (!paginationDiv) return;
-    
+
     const staffCount = (data.users || []).filter(u => ['admin', 'manager'].includes(u.role)).length;
-    
+
     paginationDiv.innerHTML = `
         <p>Показано ${staffCount} пользователей системы</p>
     `;
@@ -200,18 +196,18 @@ function viewManager(id) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
-    .then(user => {
-        const modal = createManagerModal('view', user);
-        document.body.appendChild(modal);
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
-    })
-    .catch(error => {
-        console.error('Ошибка загрузки пользователя:', error);
-        alert('Не удалось загрузить данные пользователя');
-    });
+        .then(response => response.json())
+        .then(user => {
+            const modal = createManagerModal('view', user);
+            document.body.appendChild(modal);
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки пользователя:', error);
+            alert('Не удалось загрузить данные пользователя');
+        });
 }
 
 /**
@@ -225,18 +221,18 @@ function editManager(id) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
-    .then(user => {
-        const modal = createManagerModal('edit', user);
-        document.body.appendChild(modal);
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
-    })
-    .catch(error => {
-        console.error('Ошибка загрузки пользователя:', error);
-        alert('Не удалось загрузить данные пользователя');
-    });
+        .then(response => response.json())
+        .then(user => {
+            const modal = createManagerModal('edit', user);
+            document.body.appendChild(modal);
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки пользователя:', error);
+            alert('Не удалось загрузить данные пользователя');
+        });
 }
 
 /**
@@ -246,7 +242,7 @@ async function deleteManager(id) {
     if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) {
         return;
     }
-    
+
     try {
         const token = localStorage.getItem('access_token');
         const response = await fetch(`${API_BASE_URL}/users/${id}`, {
@@ -256,11 +252,11 @@ async function deleteManager(id) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             throw new Error('Ошибка удаления пользователя');
         }
-        
+
         alert('Пользователь успешно удалён');
         loadManagersData();
     } catch (error) {
@@ -277,9 +273,10 @@ function createManagerModal(mode, user = {}) {
     const isEdit = mode === 'edit';
     const isAdd = mode === 'add';
     const title = isView ? 'Просмотр пользователя' : isEdit ? 'Редактирование пользователя' : 'Добавить пользователя';
-    
+
     const modalDiv = document.createElement('div');
     modalDiv.className = 'modal-overlay';
+    modalDiv.style.zIndex = '999999';
     modalDiv.innerHTML = `
         <div class="modal">
             <div class="modal-header">
@@ -289,80 +286,82 @@ function createManagerModal(mode, user = {}) {
                 </button>
             </div>
             <div class="modal-body">
-                <form id="managerForm" onsubmit="submitManagerForm(event, '${mode}', ${user.id || 'null'})">
-                    ${isAdd ? `
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                        <input class="mdl-textfield__input" type="text" id="username" required pattern="[a-zA-Z0-9_]+" minlength="3" maxlength="50">
-                        <label class="mdl-textfield__label" for="username">Логин *</label>
-                        <span class="mdl-textfield__error">Латинские буквы, цифры, подчеркивание (3-50 символов)</span>
+                <form id="managerForm" class="modal-form" onsubmit="submitManagerForm(event, '${mode}', ${user.id || 'null'})">
+                    <div class="form-grid">
+                        ${isAdd ? `
+                        <div class="form-group">
+                            <label for="username">Логин *</label>
+                            <input type="text" id="username" required pattern="[a-zA-Z0-9_]+" minlength="3" maxlength="50">
+                            <small class="form-helper">Латинские буквы, цифры, подчеркивание (3-50 символов)</small>
+                        </div>
+                        ` : ''}
+                        
+                        ${isView || isEdit ? `
+                        <div class="form-group">
+                            <label for="username_view">Логин</label>
+                            <input type="text" id="username_view" value="${user.username || ''}" disabled>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="form-group">
+                            <label for="full_name">ФИО *</label>
+                            <input type="text" id="full_name" value="${user.full_name || ''}" ${isView ? 'disabled' : 'required'}>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email">Email *</label>
+                            <input type="email" id="email" value="${user.email || ''}" ${isView ? 'disabled' : 'required'}>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="phone">Телефон</label>
+                            <input type="tel" id="phone" value="${user.phone || ''}" ${isView ? 'disabled' : ''}>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="telegram_id">Telegram ID ${!isView ? '*' : ''}</label>
+                            <input type="text" id="telegram_id" value="${user.telegram_id || ''}" ${isView ? 'disabled' : ''} pattern="[0-9]+" title="Только цифры">
+                            ${!isView ? `<small class="form-helper">Введите числовой Telegram ID</small>` : ''}
+                        </div>
+                        
+                        ${!isView ? `
+                        <div class="form-group form-group--full">
+                            <label for="password">Пароль ${isAdd ? '*' : '(оставьте пустым, чтобы не менять)'}</label>
+                            <input type="password" id="password" ${isAdd ? 'required' : ''}>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="form-group form-group--full">
+                            <label for="role">Роль *</label>
+                            <select id="role" ${isView ? 'disabled' : 'required'}>
+                                <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>Менеджер</option>
+                                <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Администратор</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group form-group--full">
+                            <label class="checkbox-row">
+                                <input type="checkbox" id="is_active" ${user.is_active !== false ? 'checked' : ''} ${isView ? 'disabled' : ''}>
+                                <span>Активен</span>
+                            </label>
+                        </div>
                     </div>
-                    ` : ''}
-                    
-                    ${isView || isEdit ? `
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                        <input class="mdl-textfield__input" type="text" id="username_view" value="${user.username || ''}" disabled>
-                        <label class="mdl-textfield__label" for="username_view">Логин</label>
-                    </div>
-                    ` : ''}
-                    
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                        <input class="mdl-textfield__input" type="text" id="full_name" value="${user.full_name || ''}" ${isView ? 'disabled' : 'required'}>
-                        <label class="mdl-textfield__label" for="full_name">ФИО *</label>
-                    </div>
-                    
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                        <input class="mdl-textfield__input" type="email" id="email" value="${user.email || ''}" ${isView ? 'disabled' : 'required'}>
-                        <label class="mdl-textfield__label" for="email">Email *</label>
-                    </div>
-                    
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                        <input class="mdl-textfield__input" type="tel" id="phone" value="${user.phone || ''}" ${isView ? 'disabled' : ''}>
-                        <label class="mdl-textfield__label" for="phone">Телефон</label>
-                    </div>
-                    
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                        <input class="mdl-textfield__input" type="text" id="telegram_id" value="${user.telegram_id || ''}" ${isView ? 'disabled' : ''} pattern="[0-9]+" title="Только цифры">
-                        <label class="mdl-textfield__label" for="telegram_id">Telegram ID ${!isView ? '*' : ''}</label>
-                        <span class="mdl-textfield__error">Введите числовой Telegram ID</span>
-                    </div>
-                    
-                    ${!isView ? `
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                        <input class="mdl-textfield__input" type="password" id="password" ${isAdd ? 'required' : ''}>
-                        <label class="mdl-textfield__label" for="password">Пароль ${isAdd ? '*' : '(оставьте пустым, чтобы не менять)'}</label>
-                    </div>
-                    ` : ''}
-                    
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                        <select class="mdl-textfield__input" id="role" ${isView ? 'disabled' : 'required'}>
-                            <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>Менеджер</option>
-                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Администратор</option>
-                        </select>
-                        <label class="mdl-textfield__label" for="role">Роль *</label>
-                    </div>
-                    
-                    <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="is_active">
-                        <input type="checkbox" id="is_active" class="mdl-checkbox__input" ${user.is_active !== false ? 'checked' : ''} ${isView ? 'disabled' : ''}>
-                        <span class="mdl-checkbox__label">Активен</span>
-                    </label>
                     
                     ${user.last_login ? `
-                    <div class="info-row">
-                        <i class="material-icons">schedule</i>
-                        <span>Последний вход: ${formatDateTime(user.last_login)}</span>
+                    <div class="form-note">
+                        <strong>Последний вход:</strong> ${formatDateTime(user.last_login)}
                     </div>
                     ` : ''}
                     
                     ${user.telegram_id ? `
-                    <div class="info-row">
-                        <i class="material-icons">telegram</i>
-                        <span>Telegram ID: ${user.telegram_id}</span>
+                    <div class="form-note">
+                        <strong>Telegram ID:</strong> ${user.telegram_id}
                     </div>
                     ` : ''}
                     
                     <div class="modal-footer">
                         <button type="button" class="mdl-button" onclick="closeManagerModal(this)">Закрыть</button>
-                        ${isEdit ? `<button type="button" class="mdl-button" style="color: #d32f2f; margin-right: auto;" onclick="showDeleteConfirmation(${user.id}, '${user.full_name}')">
+                        ${isEdit ? `<button type="button" class="mdl-button delete-btn" onclick="showDeleteConfirmation(${user.id}, '${user.full_name}')">
                             <i class="material-icons" style="font-size: 18px; vertical-align: middle;">delete</i> Удалить
                         </button>` : ''}
                         ${!isView ? `<button type="submit" class="mdl-button mdl-button--raised mdl-button--colored">${isEdit ? 'Сохранить' : 'Создать'}</button>` : ''}
@@ -371,13 +370,13 @@ function createManagerModal(mode, user = {}) {
             </div>
         </div>
     `;
-    
+
     setTimeout(() => {
         if (typeof componentHandler !== 'undefined') {
             componentHandler.upgradeElements(modalDiv.querySelectorAll('.mdl-textfield, .mdl-checkbox'));
         }
     }, 50);
-    
+
     return modalDiv;
 }
 
@@ -386,7 +385,7 @@ function createManagerModal(mode, user = {}) {
  */
 async function submitManagerForm(event, mode, userId) {
     event.preventDefault();
-    
+
     const formData = {
         full_name: document.getElementById('full_name').value,
         email: document.getElementById('email').value,
@@ -394,22 +393,22 @@ async function submitManagerForm(event, mode, userId) {
         role: document.getElementById('role').value,
         is_active: document.getElementById('is_active').checked
     };
-    
+
     // Проверяем Telegram ID - обязателен для админов и менеджеров
     const telegramIdField = document.getElementById('telegram_id');
     const telegramId = telegramIdField ? telegramIdField.value.trim() : '';
-    
+
     if ((formData.role === 'admin' || formData.role === 'manager') && !telegramId) {
         alert('Ошибка: Telegram ID обязателен для администраторов и менеджеров');
         telegramIdField.focus();
         return;
     }
-    
+
     // Добавляем Telegram ID если указан
     if (telegramId) {
         formData.telegram_id = telegramId;
     }
-    
+
     // Добавляем username только при создании
     if (mode === 'add') {
         const usernameField = document.getElementById('username');
@@ -417,17 +416,17 @@ async function submitManagerForm(event, mode, userId) {
             formData.username = usernameField.value;
         }
     }
-    
+
     // Добавляем пароль только если он указан
     const passwordField = document.getElementById('password');
     if (passwordField && passwordField.value) {
         formData.password = passwordField.value;
     }
-    
+
     const token = localStorage.getItem('access_token');
     const url = mode === 'edit' ? `${API_BASE_URL}/users/${userId}` : `${API_BASE_URL}/users`;
     const method = mode === 'edit' ? 'PUT' : 'POST';
-    
+
     try {
         const response = await fetch(url, {
             method: method,
@@ -437,12 +436,12 @@ async function submitManagerForm(event, mode, userId) {
             },
             body: JSON.stringify(formData)
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Ошибка сохранения');
         }
-        
+
         alert(mode === 'edit' ? 'Пользователь успешно обновлён' : 'Пользователь успешно создан');
         closeManagerModal(event.target);
         loadManagersData();
@@ -469,6 +468,7 @@ function closeManagerModal(element) {
 function showDeleteConfirmation(userId, userName) {
     const modalDiv = document.createElement('div');
     modalDiv.className = 'modal-overlay';
+    modalDiv.style.zIndex = '999999';
     modalDiv.innerHTML = `
         <div class="modal" style="max-width: 450px;">
             <div class="modal-header" style="background: linear-gradient(135deg, #d32f2f 0%, #c62828 100%);">
@@ -501,7 +501,7 @@ function showDeleteConfirmation(userId, userName) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modalDiv);
     setTimeout(() => {
         modalDiv.classList.add('show');
@@ -529,15 +529,15 @@ function closeDeleteConfirmation(element) {
  */
 async function confirmDeleteManager(event, userId) {
     event.preventDefault();
-    
+
     const password = document.getElementById('delete_password').value;
     const token = localStorage.getItem('access_token');
-    
+
     try {
         // Сначала проверяем пароль через API авторизации
         const currentUserData = JSON.parse(atob(token.split('.')[1]));
         const username = currentUserData.username || currentUserData.sub;
-        
+
         const authResponse = await fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
             headers: {
@@ -548,11 +548,11 @@ async function confirmDeleteManager(event, userId) {
                 password: password
             })
         });
-        
+
         if (!authResponse.ok) {
             throw new Error('Неверный пароль');
         }
-        
+
         // Пароль верен, удаляем пользователя
         const deleteResponse = await fetch(`${API_BASE_URL}/users/${userId}`, {
             method: 'DELETE',
@@ -561,20 +561,20 @@ async function confirmDeleteManager(event, userId) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!deleteResponse.ok) {
             const error = await deleteResponse.json();
             throw new Error(error.detail || 'Ошибка удаления');
         }
-        
+
         // Закрываем все модальные окна
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
             overlay.remove();
         });
-        
+
         alert('Пользователь успешно удалён');
         loadManagersData();
-        
+
     } catch (error) {
         console.error('Ошибка:', error);
         alert('Ошибка: ' + error.message);

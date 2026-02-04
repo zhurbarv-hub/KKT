@@ -45,6 +45,19 @@ def calculate_days_until_expiration(expiration_date: date) -> int:
     return delta.days
 
 
+def calculate_status_color(days: int) -> str:
+    """Расчёт цвета статуса на основе дней до истечения"""
+    if days is None:
+        return "unknown"
+    if days < 0:
+        return "expired"
+    elif days < 7:
+        return "red"
+    elif days < 14:
+        return "yellow"
+    else:
+        return "green"
+
 def enrich_deadline_with_details(deadline: Deadline, db: Session = None) -> dict:
     """Обогащение данных дедлайна дополнительной информацией"""
     client = None
@@ -79,7 +92,7 @@ def enrich_deadline_with_details(deadline: Deadline, db: Session = None) -> dict
             "type_name": deadline_type.type_name if deadline_type else None,
         } if deadline_type else None,
         "notification_enabled": getattr(client, 'notifications_enabled', True) if client else True,
-        "days_until_expiration": calculate_days_until_expiration(deadline.expiration_date)
+        "days_until_expiration": calculate_days_until_expiration(deadline.expiration_date), "status_color": calculate_status_color(calculate_days_until_expiration(deadline.expiration_date))
     }
 
 

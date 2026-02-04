@@ -403,7 +403,7 @@ class DeadlineResponse(BaseModel):
     Now includes user information instead of client
     """
     id: int
-    user_id: int
+    user_id: Optional[int] = None
     deadline_type_id: int
     expiration_date: date
     notes: Optional[str] = None

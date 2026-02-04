@@ -237,4 +237,38 @@ async def confirm_password_reset(
     
     return MessageResponse(
         message="Пароль успешно изменён"
+
     )
+
+
+from fastapi import Request
+
+@router.get("/me")
+async def get_me(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Получить информацию о текущем пользователе"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.split(" ")[1]
+    payload = decode_token(token)
+    
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role
+    }

@@ -1,82 +1,119 @@
-# ============================================
-# Environment Variables
-# ============================================
-.env
-
-# ============================================
 # Python
-# ============================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-
-# Virtual Environment
 venv/
-env/
+.venv/
 ENV/
-.venv
+env/
+*.egg-info/
+dist/
+build/
 
-# ============================================
-# Database
-# ============================================
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
-kkt_services.db
-
-# ============================================
-# Logs
-# ============================================
-logs/*.log
+# Node
+node_modules/
+.npm
 *.log
+npm-debug.log*
 
-# ============================================
-# IDEs and Editors
-# ============================================
+# Environment
+.env
+.env.local
+.env.*.local
+.env.backup*
+!.env.docker.example
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.DS_Store
+.qoder/
 
-# ============================================
+# Logs & Backups
+logs/
+*.log
+backups/
+*.sql.gz
+*.tar.gz
+
 # OS
-# ============================================
+.DS_Store
 Thumbs.db
-desktop.ini
 
-# ============================================
-# Backups
-# ============================================
-backups/*.db
-*.bak
-
-# ============================================
-# Build and Distribution
-# ============================================
-build/
-dist/
-*.egg-info/
-*.spec
-
-# PyInstaller
-*.manifest
-
-# ============================================
-# Testing
-# ============================================
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-
-# ============================================
 # Temporary files
-# ============================================
-*.tmp
-*.temp
-~$*
+temp_*
+test_*.py
+test_*.ps1
+test_*.sh
+test_*.json
+check_*.py
+check_*.sh
+*.bak
+*.backup
+token.txt
+checksums.txt
+
+# Old scripts (not needed for deployment)
+*.ps1
+*.bat
+deploy_*.py
+fix_*.py
+fix_*.sh
+setup_*.sh
+update_*.py
+update_*.sh
+migrate_*.sh
+run_*.ps1
+add_*.py
+add_*.sql
+insert_*.sql
+apply_*.ps1
+apply_*.sh
+complete_*.ps1
+import_*.sh
+upload_*.ps1
+debug_*.ps1
+get_*.py
+fill_*.sql
+make_*.sql
+cleanup_*.py
+
+# Documentation (keep only essential)
+*_REPORT.md
+*_COMPLETE.md
+*_FIX.md
+*_SUMMARY.md
+*_READY.md
+*_STATUS.md
+*_TESTING.md
+*_INSTRUCTIONS.md
+DEPLOYMENT_*.md
+EXTERNAL_*.md
+MIGRATION_*.md
+PRODUCTION_*.md
+SSH_TUNNEL_*.md
+TELEGRAM_*.md
+USER_*.md
+QUICK_*.md
+SETUP_*.md
+ADMIN_*.md
+AUTO_*.md
+BACKUP_*.md
+BOT_*.md
+CLIENT_*.md
+LAST_*.md
+ИНСТРУКЦИЯ_*.md
+
+# Build artifacts
+web-new/dist/
+
+# Master distribution (old)
+master-distribution/
+kkt-app-*.tar.gz
+deployment-wizard/
+*.db
+*.sqlite
+UPGRADE_DOCUMENTATION.md

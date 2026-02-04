@@ -13,10 +13,10 @@ async function loadUsersData() {
     try {
         const token = localStorage.getItem('access_token');
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        
+
         // Формируем параметр фильтра по активности
         const isActiveParam = showInactiveUsers ? '' : '&is_active=true';
-        
+
         const response = await fetch(`${API_BASE_URL}/users?role=client&page=1&page_size=50${isActiveParam}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -35,7 +35,7 @@ async function loadUsersData() {
         const data = await response.json();
         renderUsersTable(data.users || []);
         renderUsersPagination(data);
-        
+
     } catch (error) {
         console.error('Ошибка при загрузке клиентов:', error);
         showUsersError('Не удалось загрузить список клиентов');
@@ -52,7 +52,7 @@ function toggleShowInactive() {
 function renderUsersTable(users) {
     const usersSection = document.getElementById('users-section');
     if (!usersSection) return;
-    
+
     const tableHTML = `
         <div class="section-header">
             <h2>👥 Управление клиентами</h2>
@@ -69,9 +69,9 @@ function renderUsersTable(users) {
             </label>
         </div>
         
-        <div class="mdl-card mdl-shadow--2dp" style="width: 100%; overflow: hidden;">
-            <div class="mdl-card__supporting-text" style="padding: 0; overflow-x: auto;">
-                <table class="mdl-data-table mdl-js-data-table" style="width: 100%; min-width: 900px;">
+        <div class="mdl-card mdl-shadow--2dp" style="width: 100%;">
+            <div class="table-wrapper">
+                <table class="mdl-data-table mdl-js-data-table" style="min-width: 900px;">
                     <thead>
                         <tr>
                             <th class="mdl-data-table__cell--non-numeric" style="min-width: 180px;">Компания</th>
@@ -99,10 +99,10 @@ function renderUsersTable(users) {
                                 <td class="mdl-data-table__cell--non-numeric" style="white-space: normal; word-break: break-word;">${user.email || '-'}</td>
                                 <td class="mdl-data-table__cell--non-numeric">${user.phone || '-'}</td>
                                 <td class="mdl-data-table__cell--non-numeric" style="text-align: center;">
-                                    ${user.telegram_id ? '<span style="color: #4CAF50;">✅ Подключен</span>' : '<span style="color: #999;">❌ Не подключен</span>'}
+                                    ${user.telegram_id ? '<span class="status-pill status-pill--success">Подключен</span>' : '<span class="status-pill status-pill--muted">Не подключен</span>'}
                                 </td>
                                 <td class="mdl-data-table__cell--non-numeric" style="text-align: center;">
-                                    <span style="color: ${user.is_active ? '#4CAF50' : '#999'}; font-weight: 500;">
+                                    <span class="status-pill ${user.is_active ? 'status-pill--success' : 'status-pill--muted'}">
                                         ${user.is_active ? 'Активен' : 'Неактивен'}
                                     </span>
                                 </td>
@@ -129,16 +129,16 @@ function renderUsersTable(users) {
         </div>
         <div id="users-pagination"></div>
     `;
-    
+
     usersSection.innerHTML = tableHTML;
-    
+
     // Добавление обработчиков клика на строки таблицы
     setTimeout(() => {
         const tableRows = document.querySelectorAll('#users-table-body tr');
         tableRows.forEach((row, index) => {
             if (users[index]) {
                 row.style.cursor = 'pointer';
-                row.addEventListener('click', function(e) {
+                row.addEventListener('click', function (e) {
                     // Проверяем, что клик не по кнопке действия
                     if (!e.target.closest('button') && !e.target.closest('.mdl-button')) {
                         viewUserDetails(users[index].id);
@@ -147,7 +147,7 @@ function renderUsersTable(users) {
             }
         });
     }, 100);
-    
+
     // Инициализация MDL компонентов
     if (typeof componentHandler !== 'undefined') {
         componentHandler.upgradeDom();
@@ -158,7 +158,7 @@ function renderUsersTable(users) {
 function renderUsersPagination(data) {
     const paginationDiv = document.getElementById('users-pagination');
     if (!paginationDiv || !data.total_pages) return;
-    
+
     paginationDiv.innerHTML = `
         <div style="padding: 20px; text-align: center;">
             <p>Страница ${data.page} из ${data.total_pages} (Всего: ${data.total})</p>
@@ -189,18 +189,18 @@ function viewUser(userId) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
-    .then(user => {
-        const modal = createUserModal('view', user);
-        document.body.appendChild(modal);
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
-    })
-    .catch(error => {
-        console.error('Ошибка загрузки клиента:', error);
-        alert('Не удалось загрузить данные клиента');
-    });
+        .then(response => response.json())
+        .then(user => {
+            const modal = createUserModal('view', user);
+            document.body.appendChild(modal);
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки клиента:', error);
+            alert('Не удалось загрузить данные клиента');
+        });
 }
 
 function editUser(userId) {
@@ -211,18 +211,18 @@ function editUser(userId) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
-    .then(user => {
-        const modal = createUserModal('edit', user);
-        document.body.appendChild(modal);
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
-    })
-    .catch(error => {
-        console.error('Ошибка загрузки клиента:', error);
-        alert('Не удалось загрузить данные клиента');
-    });
+        .then(response => response.json())
+        .then(user => {
+            const modal = createUserModal('edit', user);
+            document.body.appendChild(modal);
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки клиента:', error);
+            alert('Не удалось загрузить данные клиента');
+        });
 }
 
 // Создание модального окна для клиента
@@ -231,9 +231,10 @@ function createUserModal(mode, user = {}) {
     const isEdit = mode === 'edit';
     const isAdd = mode === 'add';
     const title = isView ? 'Просмотр клиента' : isEdit ? 'Редактирование клиента' : 'Добавить клиента';
-    
+
     const modalDiv = document.createElement('div');
     modalDiv.className = 'modal-overlay';
+    modalDiv.style.zIndex = '999999';
     modalDiv.innerHTML = `
         <div class="modal">
             <div class="modal-header">
@@ -243,57 +244,45 @@ function createUserModal(mode, user = {}) {
                 </button>
             </div>
             <div class="modal-body">
-                <form id="userForm" onsubmit="submitUserForm(event, '${mode}', ${user.id || 'null'})">
-                    <div class="form-row">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="text" id="company_name" 
+                <form id="userForm" class="modal-form" onsubmit="submitUserForm(event, '${mode}', ${user.id || 'null'})">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="company_name">Название компании *</label>
+                            <input type="text" id="company_name"
                                    value="${user.company_name || ''}" ${isView ? 'disabled' : 'required'}>
-                            <label class="mdl-textfield__label" for="company_name">Название компании *</label>
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="text" id="inn" pattern="[0-9]{10,12}"
+                        <div class="form-group">
+                            <label for="inn">ИНН (10 или 12 цифр) *</label>
+                            <input type="text" id="inn" pattern="[0-9]{10,12}"
                                    value="${user.inn || ''}" ${isView ? 'disabled' : 'required'}>
-                            <label class="mdl-textfield__label" for="inn">ИНН (10 или 12 цифр) *</label>
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="text" id="full_name"
+                        <div class="form-group">
+                            <label for="full_name">Контактное лицо</label>
+                            <input type="text" id="full_name"
                                    value="${user.full_name || ''}" ${isView ? 'disabled' : ''}>
-                            <label class="mdl-textfield__label" for="full_name">Контактное лицо</label>
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="email" id="email"
+                        <div class="form-group">
+                            <label for="email">Email *</label>
+                            <input type="email" id="email"
                                    value="${user.email || ''}" ${isView ? 'disabled' : 'required'}>
-                            <label class="mdl-textfield__label" for="email">Email *</label>
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="tel" id="phone"
+                        <div class="form-group form-group--full">
+                            <label for="phone">Телефон</label>
+                            <input type="tel" id="phone"
                                    value="${user.phone || ''}" ${isView ? 'disabled' : ''}>
-                            <label class="mdl-textfield__label" for="phone">Телефон</label>
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <textarea class="mdl-textfield__input" id="address" rows="2" ${isView ? 'disabled' : ''}>${user.address || ''}</textarea>
-                            <label class="mdl-textfield__label" for="address">Адрес</label>
+                        <div class="form-group form-group--full">
+                            <label for="address">Адрес</label>
+                            <textarea id="address" rows="2" ${isView ? 'disabled' : ''}>${user.address || ''}</textarea>
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <textarea class="mdl-textfield__input" id="notes" rows="3" ${isView ? 'disabled' : ''}>${user.notes || ''}</textarea>
-                            <label class="mdl-textfield__label" for="notes">Примечания</label>
+                        <div class="form-group form-group--full">
+                            <label for="notes">Примечания</label>
+                            <textarea id="notes" rows="3" ${isView ? 'disabled' : ''}>${user.notes || ''}</textarea>
                         </div>
                     </div>
                     ${user.telegram_id ? `
-                    <div class="form-row">
-                        <p><strong>Telegram:</strong> ${user.telegram_username || user.telegram_id} (подключен)</p>
+                    <div class="form-note">
+                        <strong>Telegram:</strong> ${user.telegram_username || user.telegram_id} (подключен)
                     </div>
                     ` : ''}
                     <div class="modal-footer">
@@ -304,14 +293,14 @@ function createUserModal(mode, user = {}) {
             </div>
         </div>
     `;
-    
+
     // Инициализация MDL компонентов
     setTimeout(() => {
         if (typeof componentHandler !== 'undefined') {
             componentHandler.upgradeElements(modalDiv.querySelectorAll('.mdl-textfield, .mdl-checkbox'));
         }
     }, 50);
-    
+
     return modalDiv;
 }
 
@@ -324,7 +313,7 @@ function closeUserModal(btn) {
 // Отправка формы клиента
 async function submitUserForm(event, mode, userId) {
     event.preventDefault();
-    
+
     const formData = {
         company_name: document.getElementById('company_name').value,
         inn: document.getElementById('inn').value,
@@ -336,18 +325,18 @@ async function submitUserForm(event, mode, userId) {
         role: 'client',
         is_active: true
     };
-    
+
     // Для создания нового клиента добавляем username (генерируем из ИНН)
     if (mode === 'add') {
         const inn = document.getElementById('inn').value;
         // Генерируем username из ИНН: client_ + ИНН
         formData.username = 'client_' + inn;
     }
-    
+
     const token = localStorage.getItem('access_token');
     const url = mode === 'edit' ? `${API_BASE_URL}/users/${userId}` : `${API_BASE_URL}/users`;
     const method = mode === 'edit' ? 'PUT' : 'POST';
-    
+
     try {
         const response = await fetch(url, {
             method: method,
@@ -357,12 +346,12 @@ async function submitUserForm(event, mode, userId) {
             },
             body: JSON.stringify(formData)
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Ошибка сохранения');
         }
-        
+
         alert(mode === 'edit' ? 'Клиент успешно обновлен' : 'Клиент успешно создан');
         closeUserModal(event.target);
         loadUsersData(); // Перезагрузка списка
@@ -375,14 +364,14 @@ async function submitUserForm(event, mode, userId) {
 // Активировать/деактивировать пользователя
 async function toggleUserStatus(userId, userName) {
     const confirmMessage = `Вы действительно хотите изменить статус клиента "${userName}"?`;
-    
+
     if (!confirm(confirmMessage)) {
         return;
     }
-    
+
     try {
         const token = localStorage.getItem('access_token');
-        
+
         const response = await fetch(`${API_BASE_URL}/users/${userId}/toggle-status`, {
             method: 'PATCH',
             headers: {
@@ -390,7 +379,7 @@ async function toggleUserStatus(userId, userName) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             if (response.status === 401) {
                 handleLogout();
@@ -399,13 +388,13 @@ async function toggleUserStatus(userId, userName) {
             const error = await response.json();
             throw new Error(error.detail || 'Ошибка изменения статуса');
         }
-        
+
         const result = await response.json();
         alert(result.message || 'Статус успешно изменён');
-        
+
         // Перезагружаем список клиентов
         loadUsersData();
-        
+
     } catch (error) {
         console.error('Ошибка изменения статуса:', error);
         alert('Ошибка: ' + error.message);
@@ -416,17 +405,17 @@ async function toggleUserStatus(userId, userName) {
 async function deleteUser(userId, userName) {
     // Подтверждение удаления
     const confirmMessage = `Вы действительно хотите удалить клиента "${userName}"?\n\nВнимание: это деактивирует учетную запись клиента.`;
-    
+
     if (!confirm(confirmMessage)) {
         console.log('Удаление отменено пользователем');
         return;
     }
-    
+
     try {
         const token = localStorage.getItem('access_token');
-        
+
         console.log(`Удаление клиента ID: ${userId}, Имя: ${userName}`);
-        
+
         const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
             method: 'DELETE',
             headers: {
@@ -434,20 +423,20 @@ async function deleteUser(userId, userName) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         console.log('Response status:', response.status);
         console.log('Response OK:', response.ok);
-        
+
         if (!response.ok) {
             if (response.status === 401) {
                 handleLogout();
                 return;
             }
-            
+
             // Попытка получить детали ошибки
             const contentType = response.headers.get('content-type');
             let errorMessage = 'Ошибка удаления клиента';
-            
+
             if (contentType && contentType.includes('application/json')) {
                 try {
                     const error = await response.json();
@@ -464,18 +453,18 @@ async function deleteUser(userId, userName) {
                 console.log('Response text (not JSON):', text);
                 errorMessage = `Ошибка сервера ${response.status}: ${text.substring(0, 200)}`;
             }
-            
+
             throw new Error(errorMessage);
         }
-        
+
         const result = await response.json();
         console.log('Успешно удалено:', result);
-        
+
         alert(result.message || 'Клиент успешно деактивирован');
-        
+
         // Перезагружаем список клиентов
         loadUsersData();
-        
+
     } catch (error) {
         console.error('❌ ОШИБКА УДАЛЕНИЯ:', error);
         console.error('Error stack:', error.stack);
