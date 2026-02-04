@@ -43,6 +43,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       ENVIRONMENT: production
+      IS_MASTER: ${IS_MASTER:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,6 +74,8 @@ services:
     image: ghcr.io/zhurbarv-hub/kkt-frontend:latest
     container_name: kkt-frontend
     restart: unless-stopped
+    environment:
+      IS_MASTER: ${IS_MASTER:-false}
     networks:
       - kkt-network
 
@@ -84,7 +87,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
       - certbot_webroot:/var/www/certbot:ro
     depends_on:
@@ -99,7 +102,40 @@ services:
     volumes:
       - ./ssl:/etc/letsencrypt
       - certbot_webroot:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait \$\${!}; done;'"
+
+  # Автообновление контейнеров (только для клиентских систем)
+  watchtower:
+    image: containrrr/watchtower
+    container_name: kkt-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: 300
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_ROLLING_RESTART: "true"
+      WATCHTOWER_LABEL_ENABLE: "false"
+    command: kkt-backend kkt-bot kkt-frontend
+    profiles:
+      - client
+
+  # Сервис управления деплоями (только для мастер-системы)
+  deployer:
+    image: ghcr.io/zhurbarv-hub/kkt-deployer:latest
+    container_name: kkt-deployer
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/opt/kkt
+    environment:
+      INSTALL_DIR: /opt/kkt
+      IS_MASTER: "true"
+    networks:
+      - kkt-network
+    profiles:
+      - master
 
 volumes:
   postgres_data:
@@ -109,15 +145,3 @@ volumes:
 networks:
   kkt-network:
     driver: bridge
-
-  deployer:
-    image: ghcr.io/zhurbarv-hub/kkt-deployer:latest
-    container_name: kkt-deployer
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /opt/kkt:/opt/kkt
-    environment:
-      INSTALL_DIR: /opt/kkt
-    networks:
-      - kkt-network

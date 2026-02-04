@@ -10,7 +10,7 @@ NC="\033[0m"
 
 echo -e "${BLUE}"
 echo "╔══════════════════════════════════════════╗"
-echo "║     KKT System Installer v1.0            ║"
+echo "║     KKT System Installer v1.1            ║"
 echo "║     Система управления ККТ               ║"
 echo "╚══════════════════════════════════════════╝"
 echo -e "${NC}"
@@ -101,11 +101,12 @@ echo -e "${YELLOW}=== Загрузка конфигурации ===${NC}"
 # Download docker-compose and nginx config
 curl -sL https://raw.githubusercontent.com/zhurbarv-hub/KKT/main/docker-compose.prod.yml -o docker-compose.yml
 curl -sL https://raw.githubusercontent.com/zhurbarv-hub/KKT/main/nginx.prod.conf -o nginx.conf
+curl -sL https://raw.githubusercontent.com/zhurbarv-hub/KKT/main/VERSION -o VERSION
 
 # Update nginx config with domain
 sed -i "s/DOMAIN/$DOMAIN/g" nginx.conf
 
-# Create .env file
+# Create .env file (IS_MASTER=false for client installations)
 cat > .env << EOF
 # Database
 DB_USER=kkt_user
@@ -121,6 +122,9 @@ ADMIN_TELEGRAM_IDS=$ADMIN_ID
 
 # Domain
 DOMAIN=$DOMAIN
+
+# System type (false = client with auto-updates)
+IS_MASTER=false
 EOF
 
 # Create SSL directory
@@ -132,16 +136,14 @@ echo -e "${YELLOW}=== Запуск сервисов ===${NC}"
 # Pull images
 docker compose pull
 
-# Start services
+# Start core services first
 docker compose up -d postgres redis
-sleep 10
+echo "Ожидаю запуска базы данных..."
+sleep 15
 
-# Run database migrations
-echo "Применяю миграции БД..."
-docker compose run --rm backend alembic upgrade head || true
-
-# Start all services
-docker compose up -d
+# Start all services with client profile (includes Watchtower for auto-updates)
+echo "Запускаю все сервисы с автообновлением..."
+docker compose --profile client up -d
 
 # SSL certificate (if domain)
 if [ "$USE_SSL" = "yes" ]; then
@@ -152,7 +154,7 @@ if [ "$USE_SSL" = "yes" ]; then
         --email $SSL_EMAIL \
         --agree-tos \
         --no-eff-email \
-        -d $DOMAIN
+        -d $DOMAIN || echo -e "${YELLOW}SSL сертификат не получен, можно настроить позже${NC}"
     docker compose restart nginx
 fi
 
@@ -176,9 +178,11 @@ echo -e "  Пароль: ${YELLOW}admin123${NC}"
 echo ""
 echo -e "${RED}ВАЖНО: Смените пароль после первого входа!${NC}"
 echo ""
+echo -e "${GREEN}✓ Автообновления включены (Watchtower)${NC}"
+echo "  Система будет автоматически обновляться при выходе новых версий"
+echo ""
 echo "Команды управления:"
 echo "  kkt status  - статус сервисов"
 echo "  kkt logs    - просмотр логов"
-echo "  kkt update  - обновление системы"
 echo "  kkt backup  - создание резервной копии"
 echo ""

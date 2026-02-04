@@ -1,6 +1,8 @@
 """
 KKT Deployment Service
 Manages local updates and remote deployments via SSH
+Master system: full functionality
+Client system: only version info and auto-update status
 """
 
 import os
@@ -12,8 +14,7 @@ from typing import Optional
 from pathlib import Path
 
 import paramiko
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 import httpx
 import subprocess
@@ -22,17 +23,24 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="KKT Deployment Service", version="1.0.0")
-security = HTTPBearer()
 
 # Configuration
 GITHUB_REPO = "zhurbarv-hub/KKT"
 GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}"
 VERSION_FILE = "/app/VERSION"
-INSTALL_DIR = "/opt/kkt"
+INSTALL_DIR = os.environ.get("INSTALL_DIR", "/opt/kkt")
+IS_MASTER = os.environ.get("IS_MASTER", "false").lower() == "true"
 
-# In-memory storage for deployment status
+# In-memory storage
 deployments = {}
 update_status = {"status": "idle", "message": "", "progress": 0}
+
+
+class SystemInfo(BaseModel):
+    version: str
+    is_master: bool
+    hostname: str
+    auto_update: bool
 
 
 class VersionInfo(BaseModel):
@@ -61,7 +69,7 @@ class DeployRequest(BaseModel):
 class DeploymentStatus(BaseModel):
     id: str
     host: str
-    status: str  # pending, running, success, failed
+    status: str
     progress: int
     message: str
     started_at: datetime
@@ -72,15 +80,12 @@ class DeploymentStatus(BaseModel):
 def get_current_version() -> str:
     """Get current installed version"""
     try:
+        # First check local VERSION file
+        local_version = Path(INSTALL_DIR) / "VERSION"
+        if local_version.exists():
+            return local_version.read_text().strip()
         if os.path.exists(VERSION_FILE):
             return Path(VERSION_FILE).read_text().strip()
-        # Try to get from docker image label
-        result = subprocess.run(
-            ["docker", "inspect", "--format", "{{.Config.Labels.version}}", "kkt-backend"],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
     except Exception as e:
         logger.error(f"Error getting version: {e}")
     return "1.0.0"
@@ -90,8 +95,7 @@ async def get_latest_version() -> tuple[str, list[str]]:
     """Get latest version from GitHub"""
     try:
         async with httpx.AsyncClient() as client:
-            # Get latest release
-            resp = await client.get(f"{GITHUB_API}/releases/latest")
+            resp = await client.get(f"{GITHUB_API}/releases/latest", timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
                 version = data.get("tag_name", "v1.0.0").lstrip("v")
@@ -99,21 +103,33 @@ async def get_latest_version() -> tuple[str, list[str]]:
                 changelog = [line.strip() for line in body.split("\n") if line.strip().startswith("-")]
                 return version, changelog
             
-            # Fallback: get latest commit
-            resp = await client.get(f"{GITHUB_API}/commits/main")
+            # Fallback: check tags
+            resp = await client.get(f"{GITHUB_API}/tags", timeout=10)
             if resp.status_code == 200:
-                data = resp.json()
-                sha = data.get("sha", "")[:7]
-                return f"1.0.0-{sha}", []
+                tags = resp.json()
+                if tags:
+                    return tags[0].get("name", "v1.0.0").lstrip("v"), []
     except Exception as e:
         logger.error(f"Error fetching latest version: {e}")
     
-    return "1.0.0", []
+    return get_current_version(), []
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "is_master": IS_MASTER}
+
+
+@app.get("/info", response_model=SystemInfo)
+async def get_system_info():
+    """Get system information"""
+    import socket
+    return SystemInfo(
+        version=get_current_version(),
+        is_master=IS_MASTER,
+        hostname=socket.gethostname(),
+        auto_update=not IS_MASTER  # Clients have auto-update via Watchtower
+    )
 
 
 @app.get("/version", response_model=VersionInfo)
@@ -138,7 +154,10 @@ async def get_update_status():
 
 @app.post("/update")
 async def start_update(request: UpdateRequest, background_tasks: BackgroundTasks):
-    """Start system update"""
+    """Start system update (master only)"""
+    if not IS_MASTER:
+        raise HTTPException(403, "Updates are automatic on client systems")
+    
     global update_status
     
     if update_status["status"] == "running":
@@ -158,7 +177,7 @@ async def run_update():
         steps = [
             ("Pulling new images...", "docker compose pull"),
             ("Stopping services...", "docker compose stop backend bot frontend"),
-            ("Starting services...", "docker compose up -d"),
+            ("Starting services...", "docker compose up -d backend bot frontend"),
             ("Cleaning up...", "docker image prune -f"),
         ]
         
@@ -174,7 +193,7 @@ async def run_update():
             
             await asyncio.sleep(1)
         
-        update_status = {"status": "success", "message": "Update completed!", "progress": 100}
+        update_status = {"status": "success", "message": "Обновление завершено!", "progress": 100}
         
     except Exception as e:
         logger.error(f"Update failed: {e}")
@@ -183,7 +202,10 @@ async def run_update():
 
 @app.post("/deploy")
 async def start_deployment(request: DeployRequest, background_tasks: BackgroundTasks):
-    """Start deployment to a new VDS"""
+    """Start deployment to a new VDS (master only)"""
+    if not IS_MASTER:
+        raise HTTPException(403, "Deployments can only be initiated from master system")
+    
     import uuid
     
     deploy_id = str(uuid.uuid4())[:8]
@@ -193,7 +215,7 @@ async def start_deployment(request: DeployRequest, background_tasks: BackgroundT
         host=request.host,
         status="pending",
         progress=0,
-        message="Queued for deployment",
+        message="В очереди на развёртывание",
         started_at=datetime.utcnow(),
         logs=[]
     )
@@ -214,7 +236,9 @@ async def get_deployment_status(deploy_id: str):
 
 @app.get("/deployments")
 async def list_deployments():
-    """List all deployments"""
+    """List all deployments (master only)"""
+    if not IS_MASTER:
+        return []
     return list(deployments.values())
 
 
@@ -222,11 +246,10 @@ async def run_deployment(deploy_id: str, request: DeployRequest):
     """Run SSH deployment to remote server"""
     deployment = deployments[deploy_id]
     deployment.status = "running"
-    deployment.message = "Connecting to server..."
+    deployment.message = "Подключение к серверу..."
     
     ssh = None
     try:
-        # Connect via SSH
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         
@@ -243,20 +266,20 @@ async def run_deployment(deploy_id: str, request: DeployRequest):
         elif request.password:
             connect_kwargs["password"] = request.password
         else:
-            raise Exception("No authentication method provided")
+            raise Exception("Не указан метод аутентификации")
         
         ssh.connect(**connect_kwargs, timeout=30)
-        deployment.logs.append(f"✓ Connected to {request.host}")
+        deployment.logs.append(f"✓ Подключено к {request.host}")
         deployment.progress = 10
         
         # Installation steps
         steps = [
-            ("Installing Docker...", "curl -fsSL https://get.docker.com | sh || true"),
-            ("Installing Docker Compose...", "apt-get update && apt-get install -y docker-compose-plugin || true"),
-            ("Creating directory...", "mkdir -p /opt/kkt && cd /opt/kkt"),
-            ("Downloading configs...", 
+            ("Установка Docker...", "curl -fsSL https://get.docker.com | sh || true"),
+            ("Установка Docker Compose...", "apt-get update && apt-get install -y docker-compose-plugin || true"),
+            ("Создание директории...", "mkdir -p /opt/kkt && cd /opt/kkt"),
+            ("Загрузка конфигурации...", 
              f"cd /opt/kkt && curl -sL https://raw.githubusercontent.com/{GITHUB_REPO}/main/docker-compose.prod.yml -o docker-compose.yml"),
-            ("Downloading nginx config...", 
+            ("Загрузка nginx конфига...", 
              f"cd /opt/kkt && curl -sL https://raw.githubusercontent.com/{GITHUB_REPO}/main/nginx.prod.conf -o nginx.conf"),
         ]
         
@@ -270,12 +293,12 @@ async def run_deployment(deploy_id: str, request: DeployRequest):
             error = stderr.read().decode()
             
             if exit_code != 0 and "already" not in error.lower():
-                deployment.logs.append(f"⚠ {message}: {error}")
+                deployment.logs.append(f"⚠ {message}: {error[:100]}")
             else:
                 deployment.logs.append(f"✓ {message}")
         
         # Create .env file
-        deployment.message = "Creating configuration..."
+        deployment.message = "Создание конфигурации..."
         deployment.progress = 60
         
         import secrets
@@ -283,55 +306,56 @@ async def run_deployment(deploy_id: str, request: DeployRequest):
         jwt_secret = secrets.token_urlsafe(64)
         domain = request.domain or request.host
         
-        env_content = f"""
-DB_USER=kkt_user
+        env_content = f"""DB_USER=kkt_user
 DB_PASSWORD={db_password}
 DB_NAME=kkt_production
 JWT_SECRET_KEY={jwt_secret}
 TELEGRAM_BOT_TOKEN={request.bot_token}
 ADMIN_TELEGRAM_IDS={request.admin_telegram_id}
 DOMAIN={domain}
+IS_MASTER=false
 """
         
-        stdin, stdout, stderr = ssh.exec_command(f"cat > /opt/kkt/.env << 'ENVEOF'\n{env_content}\nENVOF")
+        stdin, stdout, stderr = ssh.exec_command(f"cat > /opt/kkt/.env << 'ENVEOF'\n{env_content}ENVEOF")
         stdout.channel.recv_exit_status()
-        deployment.logs.append("✓ Configuration created")
+        deployment.logs.append("✓ Конфигурация создана")
         
         # Update nginx with domain
-        deployment.message = "Configuring nginx..."
+        deployment.message = "Настройка nginx..."
         ssh.exec_command(f"cd /opt/kkt && sed -i 's/DOMAIN/{domain}/g' nginx.conf")
-        deployment.logs.append("✓ Nginx configured")
+        deployment.logs.append("✓ Nginx настроен")
         deployment.progress = 70
         
-        # Pull and start
-        deployment.message = "Pulling Docker images..."
+        # Pull and start with client profile (includes watchtower)
+        deployment.message = "Загрузка Docker образов..."
         stdin, stdout, stderr = ssh.exec_command("cd /opt/kkt && docker compose pull", timeout=600)
         stdout.channel.recv_exit_status()
-        deployment.logs.append("✓ Docker images pulled")
+        deployment.logs.append("✓ Docker образы загружены")
         deployment.progress = 85
         
-        deployment.message = "Starting services..."
-        stdin, stdout, stderr = ssh.exec_command("cd /opt/kkt && docker compose up -d", timeout=300)
+        deployment.message = "Запуск сервисов..."
+        stdin, stdout, stderr = ssh.exec_command("cd /opt/kkt && docker compose --profile client up -d", timeout=300)
         stdout.channel.recv_exit_status()
-        deployment.logs.append("✓ Services started")
+        deployment.logs.append("✓ Сервисы запущены")
+        deployment.logs.append("✓ Watchtower активирован (авто-обновления)")
         deployment.progress = 95
         
         # Install CLI
         ssh.exec_command(f"curl -sL https://raw.githubusercontent.com/{GITHUB_REPO}/main/kkt-cli.sh -o /usr/local/bin/kkt && chmod +x /usr/local/bin/kkt")
-        deployment.logs.append("✓ KKT CLI installed")
+        deployment.logs.append("✓ KKT CLI установлен")
         
         deployment.status = "success"
-        deployment.message = "Deployment completed!"
+        deployment.message = "Развёртывание завершено!"
         deployment.progress = 100
         deployment.finished_at = datetime.utcnow()
-        deployment.logs.append(f"\n🎉 System available at: http://{domain}")
+        deployment.logs.append(f"\n🎉 Система доступна: http://{domain}")
         
     except Exception as e:
         logger.error(f"Deployment failed: {e}")
         deployment.status = "failed"
         deployment.message = str(e)
         deployment.finished_at = datetime.utcnow()
-        deployment.logs.append(f"✗ Error: {e}")
+        deployment.logs.append(f"✗ Ошибка: {e}")
     
     finally:
         if ssh:
