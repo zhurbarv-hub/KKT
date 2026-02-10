@@ -156,6 +156,19 @@ export const deadlineTypesApi = {
   },
 };
 
+
+// Setup API (first-run configuration)
+export const setupApi = {
+  getStatus: async (): Promise<{ needs_setup: boolean }> => {
+    const response = await axios.get<{ needs_setup: boolean }>("/api/setup/status");
+    return response.data;
+  },
+  createAdmin: async (data: { email: string; password: string; full_name: string }): Promise<{ message: string; email: string }> => {
+    const response = await axios.post<{ message: string; email: string }>("/api/setup", data);
+    return response.data;
+  },
+};
+
 export default api;
 
 // Support Requests API

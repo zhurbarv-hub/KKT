@@ -2,12 +2,14 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useAuth } from './hooks/useAuth';
+import { setupApi } from './services/api';
 
 // Layouts
 import MainLayout from './components/layout/MainLayout';
 
 // Pages
 import LoginPage from './pages/LoginPage';
+import SetupPage from './pages/SetupPage';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import DeadlinesPage from './pages/DeadlinesPage';
@@ -52,13 +54,45 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Setup check wrapper for login page
+function LoginWithSetupCheck() {
+  const [checking, setChecking] = useState(true);
+  const [needsSetup, setNeedsSetup] = useState(false);
+
+  useEffect(() => {
+    setupApi.getStatus()
+      .then((res) => {
+        setNeedsSetup(res.needs_setup);
+      })
+      .catch(() => {
+        setNeedsSetup(false);
+      })
+      .finally(() => setChecking(false));
+  }, []);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      </div>
+    );
+  }
+
+  if (needsSetup) {
+    return <Navigate to="/setup" replace />;
+  }
+
+  return <LoginPage />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename="/">
         <Routes>
           {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<LoginWithSetupCheck />} />
+          <Route path="/setup" element={<SetupPage />} />
 
           {/* Protected routes */}
           <Route
