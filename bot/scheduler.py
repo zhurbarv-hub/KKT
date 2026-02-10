@@ -243,13 +243,16 @@ def setup_scheduler(bot: Bot, db_session: Session, api_client: WebAPIClient = No
     )
     
     # Добавляем задачу в планировщик
+    # misfire_grace_time=3600 — если бот пропустил 09:00 (напр., перезапуск),
+    # задача запустится в течение 1 часа после планового времени
     scheduler.add_job(
         scheduled_deadline_check,
         trigger=trigger,
-        args=[bot, db_session, api_client],  # Передаём api_client
+        args=[bot, db_session, api_client],
         id='deadline_check',
         name='Ежедневная проверка дедлайнов',
-        replace_existing=True
+        replace_existing=True,
+        misfire_grace_time=3600
     )
     
     # Добавляем задачу ежедневной сводки (если включено)
@@ -267,7 +270,8 @@ def setup_scheduler(bot: Bot, db_session: Session, api_client: WebAPIClient = No
             args=[bot, db_session],
             id='daily_summary',
             name='Ежедневная сводка',
-            replace_existing=True
+            replace_existing=True,
+            misfire_grace_time=3600
         )
         logger.info("📊 Ежедневная сводка включена: отправка каждый день в 09:00 ({settings.notification_timezone})")
     

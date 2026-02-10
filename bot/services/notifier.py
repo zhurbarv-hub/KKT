@@ -53,6 +53,7 @@ def log_notification(deadline_id: int, recipient_id: str, days: int, status: str
         log_entry = models.NotificationLog(
             deadline_id=deadline_id,
             recipient_telegram_id=recipient_id,
+            days_before=days,
             message_text=f"Уведомление за {days} дней до истечения",
             status=status,
             error_message=error

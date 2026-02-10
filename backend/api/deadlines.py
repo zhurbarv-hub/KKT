@@ -9,7 +9,7 @@ from typing import List
 from datetime import date, datetime
 
 from backend.database import get_db
-from backend.models import Deadline, User, DeadlineType
+from backend.models import Deadline, User, DeadlineType, CashRegister
 from backend.schemas import (
     DeadlineCreate,
     DeadlineUpdate,
@@ -84,7 +84,8 @@ async def list_deadlines(
     # Apply pagination and eager load relationships
     deadlines = query.options(
         joinedload(Deadline.user),
-        joinedload(Deadline.deadline_type)
+        joinedload(Deadline.deadline_type),
+        joinedload(Deadline.cash_register)
     ).offset(pagination.offset).limit(pagination.limit).all()
     
     # Convert to response
@@ -109,6 +110,14 @@ async def list_deadlines(
             deadline_dict['deadline_type_name'] = deadline.deadline_type.type_name
         else:
             deadline_dict['deadline_type_name'] = None
+        
+        # Populate cash register info
+        if deadline.cash_register:
+            deadline_dict['cash_register_name'] = deadline.cash_register.register_name or deadline.cash_register.model or f"ККТ #{deadline.cash_register.id}"
+            deadline_dict['installation_address'] = deadline.cash_register.installation_address
+        else:
+            deadline_dict['cash_register_name'] = None
+            deadline_dict['installation_address'] = None
             
         deadline_responses.append(DeadlineResponse(**deadline_dict))
     
@@ -231,7 +240,9 @@ async def create_deadline(
         )
     
     # Create new deadline
-    new_deadline = Deadline(**deadline_data.model_dump())
+    deadline_dict = deadline_data.model_dump()
+    deadline_dict["client_id"] = deadline_dict["user_id"]
+    new_deadline = Deadline(**deadline_dict)
     
     db.add(new_deadline)
     db.commit()

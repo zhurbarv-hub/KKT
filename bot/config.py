@@ -20,6 +20,7 @@ def get_bot_config():
     try:
         config = {
             'telegram_bot_token': settings.telegram_bot_token,
+            'telegram_admin_id': settings.telegram_admin_id,
             'telegram_admin_ids': settings.telegram_admin_ids_list,
             'notification_check_time': settings.notification_check_time,
             'notification_timezone': settings.notification_timezone,

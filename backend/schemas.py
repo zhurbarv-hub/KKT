@@ -22,8 +22,8 @@ import re
 
 class LoginRequest(BaseModel):
     """User login credentials"""
-    email: EmailStr = Field(..., description="User email address")
-    password: str = Field(..., min_length=8, description="User password (minimum 8 characters)")
+    email: str = Field(..., description="User email address")
+    password: str = Field(..., description="User password (minimum 8 characters)")
 
 
 class Token(BaseModel):
@@ -58,7 +58,7 @@ class UserBase(BaseModel):
     - No Telegram integration needed
     - No notification settings
     """
-    email: EmailStr = Field(..., description="User email address (unique)")
+    email: str = Field(..., description="User email address (unique)")
     full_name: str = Field(..., min_length=1, max_length=255, description="Full name or contact person name")
     role: str = Field(default="client", description="User role: client, manager, admin")
     
@@ -101,12 +101,18 @@ class UserBase(BaseModel):
     
     @validator('phone')
     def validate_phone(cls, v):
-        """Validate Russian phone format: +7XXXXXXXXXX"""
+        """Validate and normalize Russian phone format"""
         if v is None:
             return v
         v = v.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-        if not re.match(r'^\+?7\d{10}$', v):
-            raise ValueError('Phone must be in format: +7XXXXXXXXXX')
+        if re.match(r'^8\d{10}$', v):
+            v = '+7' + v[1:]
+        elif re.match(r'^7\d{10}$', v):
+            v = '+' + v
+        elif re.match(r'^\+7\d{10}$', v):
+            pass
+        else:
+            raise ValueError('Phone must be in format: +7XXXXXXXXXX or 8XXXXXXXXXX')
         return v
     
     @validator('notification_days')
@@ -193,8 +199,14 @@ class UserUpdate(BaseModel):
         if v is None:
             return v
         v = v.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-        if not re.match(r'^\+?7\d{10}$', v):
-            raise ValueError('Phone must be in format: +7XXXXXXXXXX')
+        if re.match(r'^8\d{10}$', v):
+            v = '+7' + v[1:]
+        elif re.match(r'^7\d{10}$', v):
+            v = '+' + v
+        elif re.match(r'^\+7\d{10}$', v):
+            pass
+        else:
+            raise ValueError('Phone must be in format: +7XXXXXXXXXX or 8XXXXXXXXXX')
         return v
     
     @validator('notification_days')
@@ -250,7 +262,6 @@ class UserResponse(BaseModel):
     registered_at: datetime
     last_interaction: Optional[datetime] = None
     created_at: datetime
-    updated_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -274,82 +285,30 @@ class UserListResponse(BaseModel):
 
 
 # ============================================
-# DEPRECATED: Client Schemas (Replaced by User schemas)
-# ============================================
-# Clients are now unified with Users (role='client')
-# Use UserBase, UserCreate, UserUpdate, UserResponse instead
-# These schemas kept temporarily for backward compatibility
-
-"""
-class ClientBase(BaseModel):
-    # Base client fields
-    name: str = Field(..., min_length=1, max_length=255, description="Client organization name")
-    inn: str = Field(..., description="Tax identification number (10 or 12 digits)")
-    contact_person: Optional[str] = Field(None, max_length=255, description="Primary contact person")
-    phone: Optional[str] = Field(None, max_length=20, description="Contact phone number")
-    email: Optional[EmailStr] = Field(None, description="Contact email address")
-    address: Optional[str] = Field(None, description="Physical address")
-    notes: Optional[str] = Field(None, description="Additional notes")
-
-
-class ClientCreate(ClientBase):
-    # Schema for creating new client
-    pass
-
-
-class ClientUpdate(BaseModel):
-    # Schema for updating client (all fields optional)
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    inn: Optional[str] = None
-    contact_person: Optional[str] = Field(None, max_length=255)
-    phone: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = None
-    address: Optional[str] = None
-    notes: Optional[str] = None
-    is_active: Optional[bool] = None
-
-
-class ClientResponse(ClientBase):
-    # Schema for client API response
-    id: int
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime
-    
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ClientWithDetails(ClientResponse):
-    # Schema for client with nested deadlines and contacts
-    deadlines: List['DeadlineResponse'] = []
-    contacts: List['ContactResponse'] = []
-    
-    model_config = ConfigDict(from_attributes=True)
-"""  # End of deprecated Client schemas
-
 
 # ============================================
 # Deadline Type Schemas
 # ============================================
 
+
 class DeadlineTypeBase(BaseModel):
     """Base deadline type fields"""
-    type_name: str = Field(..., min_length=1, max_length=100, description="Service type name")
-    description: Optional[str] = Field(None, description="Type description")
+    type_name: str = Field(..., min_length=1, max_length=100, description="Name of the deadline type")
+    description: Optional[str] = Field(None, description="Description of the deadline type")
+    is_system: bool = Field(False, description="Whether this is a system-defined type")
+    is_active: bool = Field(True, description="Whether this type is active")
 
 
 class DeadlineTypeCreate(DeadlineTypeBase):
-    """Schema for creating new deadline type"""
+    """Schema for creating a new deadline type"""
     pass
 
 
 class DeadlineTypeResponse(DeadlineTypeBase):
     """Schema for deadline type API response"""
     id: int
-    is_system: bool
-    is_active: bool
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -357,12 +316,13 @@ class DeadlineTypeResponse(DeadlineTypeBase):
 # Deadline Schemas
 # ============================================
 
+
 class DeadlineBase(BaseModel):
     """
-    Base deadline fields for KKT service expiration tracking
-    Updated to use user_id instead of client_id (clients are now users with role='client')
+    Base deadline fields for KKT service expiration tracking.
     """
     user_id: int = Field(..., description="Reference to user (client with role='client')")
+    cash_register_id: Optional[int] = Field(None, description="Reference to cash register (optional)")
     deadline_type_id: int = Field(..., description="Reference to deadline type")
     expiration_date: date = Field(..., description="Service expiration date")
     notes: Optional[str] = Field(None, description="Additional notes")
@@ -384,6 +344,7 @@ class DeadlineCreate(DeadlineBase):
 class DeadlineUpdate(BaseModel):
     """Schema for updating deadline (all fields optional)"""
     user_id: Optional[int] = Field(None, description="Reference to user")
+    cash_register_id: Optional[int] = Field(None, description="Reference to cash register")
     deadline_type_id: Optional[int] = None
     expiration_date: Optional[date] = None
     status: Optional[str] = Field(None, description="Deadline status (active, expired, renewed)")
@@ -405,11 +366,11 @@ class DeadlineResponse(BaseModel):
     id: int
     user_id: Optional[int] = None
     deadline_type_id: int
+    cash_register_id: Optional[int] = None
     expiration_date: date
     notes: Optional[str] = None
     status: str
     created_at: datetime
-    updated_at: datetime
     
     # Calculated fields
     days_until_expiration: Optional[int] = Field(None, description="Days remaining until expiration")
@@ -420,6 +381,10 @@ class DeadlineResponse(BaseModel):
     company_name: Optional[str] = Field(None, description="Company name for client users")
     deadline_type_name: Optional[str] = Field(None, description="Deadline type name")
     
+    # Cash register info (populated from relationship)
+    cash_register_name: Optional[str] = Field(None, description="Cash register name")
+    installation_address: Optional[str] = Field(None, description="Installation address")
+    
     # Legacy compatibility field (deprecated)
     client_name: Optional[str] = Field(None, description="DEPRECATED: Use user_name instead")
     
@@ -427,77 +392,23 @@ class DeadlineResponse(BaseModel):
 
 
 # ============================================
-# DEPRECATED: Contact Schemas (Replaced by User schemas)
-# ============================================
-# Contacts are now unified with Users (Telegram fields in User model)
-# Use User model's telegram_id, telegram_username, first_name, last_name instead
-# These schemas kept temporarily for backward compatibility
-
-"""
-class ContactBase(BaseModel):
-    # Base contact fields
-    telegram_id: str = Field(..., max_length=50, description="Telegram user ID")
-    telegram_username: Optional[str] = Field(None, max_length=100, description="Telegram username")
-    first_name: Optional[str] = Field(None, max_length=100, description="First name")
-    last_name: Optional[str] = Field(None, max_length=100, description="Last name")
-
-
-class ContactCreate(ContactBase):
-    # Schema for creating new contact
-    client_id: int = Field(..., description="Reference to client")
-
-
-class ContactUpdate(BaseModel):
-    # Schema for updating contact
-    telegram_username: Optional[str] = Field(None, max_length=100)
-    first_name: Optional[str] = Field(None, max_length=100)
-    last_name: Optional[str] = Field(None, max_length=100)
-    notifications_enabled: Optional[bool] = None
-
-
-class ContactResponse(ContactBase):
-    # Schema for contact API response
-    id: int
-    client_id: int
-    notifications_enabled: bool
-    registered_at: datetime
-    last_interaction: Optional[datetime] = None
-    
-    model_config = ConfigDict(from_attributes=True)
-"""  # End of deprecated Contact schemas
-
-
-# ============================================
-# Notification Log Schemas
-# ============================================
-
-class NotificationLogResponse(BaseModel):
-    """Schema for notification log API response"""
-    id: int
-    deadline_id: int
-    recipient_telegram_id: str
-    message_text: str
-    status: str
-    sent_at: datetime
-    error_message: Optional[str] = None
-    
-    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================
 # Dashboard Schemas
 # ============================================
 
+
 class StatusBreakdown(BaseModel):
-    """Status count breakdown"""
-    green: int = Field(default=0, description="Deadlines > 14 days")
-    yellow: int = Field(default=0, description="Deadlines 7-14 days")
-    red: int = Field(default=0, description="Deadlines < 7 days")
-    expired: int = Field(default=0, description="Expired deadlines")
+    """Status color breakdown for dashboard"""
+    green: int = 0
+    yellow: int = 0
+    red: int = 0
+    expired: int = 0
 
 
 class UrgentDeadline(BaseModel):
-    """Urgent deadline summary"""
+    """Urgent deadline for dashboard display"""
     client_name: str
     deadline_type: str
     expiration_date: date
@@ -505,39 +416,25 @@ class UrgentDeadline(BaseModel):
 
 
 class DashboardSummary(BaseModel):
-    """Dashboard statistics summary"""
-    total_clients: int = Field(default=0, description="Total number of clients")
-    active_clients: int = Field(default=0, description="Number of active clients")
-    total_deadlines: int = Field(default=0, description="Total number of deadlines")
-    status_breakdown: StatusBreakdown = Field(default_factory=StatusBreakdown, description="Breakdown by status")
-    urgent_deadlines: List[UrgentDeadline] = Field(default_factory=list, description="Most urgent deadlines")
+    """Dashboard summary with status breakdown and urgent deadlines"""
+    total_clients: int
+    active_clients: int
+    total_deadlines: int
+    status_breakdown: StatusBreakdown
+    urgent_deadlines: List[UrgentDeadline]
 
 
-# ============================================
-# Pagination Schemas
-# ============================================
+class NotificationLogResponse(BaseModel):
+    """Notification log entry"""
+    id: int
+    deadline_id: Optional[int] = None
+    user_id: Optional[int] = None
+    notification_type: Optional[str] = None
+    message: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    status: Optional[str] = None
 
-class PaginatedResponse(BaseModel):
-    """Generic paginated response"""
-    total: int = Field(..., description="Total number of items")
-    page: int = Field(..., description="Current page number")
-    limit: int = Field(..., description="Items per page")
-    items: List = Field(default_factory=list, description="List of items")
-
-
-# ============================================
-# DEPRECATED: Pagination Schemas (Use UserListResponse instead)
-# ============================================
-# ClientListResponse is deprecated - use UserListResponse with role filter
-
-"""
-class ClientListResponse(BaseModel):
-    # Paginated client list response
-    total: int
-    page: int
-    limit: int
-    clients: List[ClientResponse]
-"""  # End of deprecated ClientListResponse
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DeadlineListResponse(BaseModel):
@@ -579,7 +476,6 @@ class ErrorResponse(BaseModel):
         }
 
 
-
 # ============================================
 # Generic Success Response
 # ============================================
@@ -593,3 +489,57 @@ class MessageResponse(BaseModel):
 # Update forward references for schemas with nested relationships
 UserWithDetails.model_rebuild()
 DeadlineResponse.model_rebuild()
+
+
+# ============================================
+# Cash Register Schemas
+# ============================================
+
+class CashRegisterBase(BaseModel):
+    """Base cash register fields"""
+    client_id: int = Field(..., description="Reference to client user")
+    factory_number: Optional[str] = Field(None, max_length=100, description="Factory/serial number")
+    registration_number: Optional[str] = Field(None, max_length=100, description="Tax registration number")
+    model: Optional[str] = Field(None, max_length=100, description="Cash register model")
+    register_name: Optional[str] = Field(None, max_length=255, description="User-defined register name")
+    installation_address: Optional[str] = Field(None, description="Physical installation address")
+    fn_number: Optional[str] = Field(None, max_length=100, description="Fiscal storage number")
+    ofd_provider_id: Optional[int] = Field(None, description="OFD provider ID")
+    ofd_expiry_date: Optional[date] = Field(None, description="OFD subscription expiration")
+    fn_expiry_date: Optional[date] = Field(None, description="Fiscal storage expiration")
+    notes: Optional[str] = Field(None, description="Additional notes")
+
+
+class CashRegisterCreate(CashRegisterBase):
+    """Schema for creating new cash register"""
+    pass
+
+
+class CashRegisterUpdate(BaseModel):
+    """Schema for updating cash register (all fields optional)"""
+    factory_number: Optional[str] = Field(None, max_length=100)
+    registration_number: Optional[str] = Field(None, max_length=100)
+    model: Optional[str] = Field(None, max_length=100)
+    register_name: Optional[str] = Field(None, max_length=255)
+    installation_address: Optional[str] = None
+    fn_number: Optional[str] = Field(None, max_length=100)
+    ofd_provider_id: Optional[int] = Field(None)
+    ofd_expiry_date: Optional[date] = None
+    fn_expiry_date: Optional[date] = None
+    notes: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class CashRegisterResponse(CashRegisterBase):
+    """Schema for cash register API response"""
+    id: int
+    is_active: bool
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CashRegisterListResponse(BaseModel):
+    """Paginated list of cash registers"""
+    total: int
+    cash_registers: List[CashRegisterResponse]

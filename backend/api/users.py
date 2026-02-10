@@ -65,6 +65,25 @@ def generate_registration_code(length: int = 8) -> str:
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
+def generate_username(db: Session, role: str, email: str, inn: str = None) -> str:
+    """
+    Generate unique username for new user.
+    For clients: client_{inn} or client_{email_prefix}
+    For managers/admins: email prefix
+    """
+    if role == 'client' and inn:
+        base = f"client_{inn}"
+    else:
+        base = email.split('@')[0] if email else 'user'
+    
+    username = base
+    counter = 1
+    while db.query(User).filter(User.username == username).first():
+        username = f"{base}_{counter}"
+        counter += 1
+    return username
+
+
 # ============================================
 # User CRUD Endpoints
 # ============================================
@@ -257,9 +276,12 @@ async def create_user(
     if user_data.password:
         password_hash = get_password_hash(user_data.password)
     
+    # Generate unique username
+    username = generate_username(db, user_data.role, user_data.email, user_data.inn)
+    
     # Create new user
     user_dict = user_data.model_dump(exclude={'password'})
-    new_user = User(**user_dict, password_hash=password_hash)
+    new_user = User(**user_dict, password_hash=password_hash, username=username)
     
     db.add(new_user)
     db.commit()

@@ -13,7 +13,7 @@ from datetime import date, timedelta
 from typing import List, Optional
 
 from backend.database import get_db
-from backend.models import User, Deadline, DeadlineType
+from backend.models import User, Deadline, DeadlineType, CashRegister
 from backend.schemas import DashboardSummary, StatusBreakdown, UrgentDeadline
 from backend.dependencies import get_current_active_user
 from backend.cache import cache, CacheKeys
@@ -38,8 +38,8 @@ def _calculate_dashboard_stats(db: Session) -> dict:
     # Total Deadlines
     total_deadlines = db.query(func.count(Deadline.id)).scalar() or 0
     
-    # Total Cash Registers (placeholder)
-    total_cash_registers = 0
+    # Total Cash Registers
+    total_cash_registers = db.query(func.count(CashRegister.id)).filter(CashRegister.is_active == True).scalar() or 0
     
     # Status Breakdown
     green_count = db.query(func.count(Deadline.id))                    .filter(Deadline.status == 'active', Deadline.expiration_date >= yellow_threshold)                    .scalar() or 0

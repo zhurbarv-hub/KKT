@@ -66,6 +66,9 @@ class User(Base):
     # Primary Key
     id = Column(Integer, primary_key=True, autoincrement=True)
     
+    # Username (auto-generated, used as unique identifier)
+    username = Column(String(100), nullable=False, unique=True, index=True)
+    
     # Authentication
     email = Column(String(255), nullable=False, unique=True, index=True)
     password_hash = Column(String(255), nullable=True)  # NULL for clients not yet registered
@@ -184,32 +187,6 @@ class User(Base):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
-# ============================================
-# DEPRECATED MODELS (Replaced by unified User model)
-# Kept for reference during migration, will be removed after completion
-# ============================================
-
-# class Client(Base):
-#     Client organizations using cash register services
-#     
-#     Attributes:
-#         id: Unique client identifier
-#         name: Client organization name (unique)
-#         inn: Tax identification number (10 or 12 digits, unique)
-#         contact_person: Primary contact person name
-#         phone: Contact phone number
-#         email: Contact email address
-#         address: Physical address
-#         notes: Additional notes about client
-#         is_active: Client active status
-#         created_at: Record creation timestamp
-#         updated_at: Last update timestamp
-#     
-#     Relationships:
-#         deadlines: Collection of all deadlines for this client (CASCADE DELETE)
-#         contacts: Collection of Telegram contacts for this client (CASCADE DELETE)
-# End of deprecated Client model
-
 
 class DeadlineType(Base):
     """
@@ -260,6 +237,101 @@ class DeadlineType(Base):
         }
 
 
+
+
+class OFDProvider(Base):
+    __tablename__ = "ofd_providers"
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), unique=True, nullable=False)
+    website = Column(String(255))
+    support_phone = Column(String(50))
+    support_email = Column(String(255))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CashRegister(Base):
+    """
+    Cash register (KKT) equipment records
+    
+    Attributes:
+        id: Unique cash register identifier
+        client_id: Reference to users.id (client who owns this register)
+        factory_number: Factory/serial number
+        registration_number: Tax registration number
+        model: Cash register model name
+        register_name: User-defined name for the register
+        installation_address: Physical installation address
+        fn_number: Fiscal storage number
+        ofd_provider: OFD provider name
+        ofd_expiry_date: OFD subscription expiration
+        fn_expiry_date: Fiscal storage expiration
+        notes: Additional notes
+        is_active: Active status
+        created_at: Record creation timestamp
+        updated_at: Last update timestamp
+    
+    Relationships:
+        client: Reference to owning client user
+        deadlines: Collection of deadlines for this cash register
+    """
+    __tablename__ = "cash_registers"
+    
+    # Primary Key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Foreign Key
+    client_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    # Cash Register Information
+    factory_number = Column(String(100), nullable=True, index=True)
+    registration_number = Column(String(100), nullable=True, index=True)
+    model = Column(String(100), nullable=True)
+    register_name = Column(String(255), nullable=True)
+    installation_address = Column(Text, nullable=True)
+    
+    # Fiscal Data
+    fn_number = Column(String(100), nullable=True)
+    ofd_provider_id = Column(Integer, ForeignKey('ofd_providers.id'), nullable=True)
+    ofd_expiry_date = Column(Date, nullable=True)
+    fn_expiry_date = Column(Date, nullable=True)
+    
+    # Additional
+    notes = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    client = relationship("User", foreign_keys=[client_id])
+    deadlines = relationship("Deadline", back_populates="cash_register")
+    
+    def __repr__(self):
+        return f"<CashRegister(id={self.id}, client_id={self.client_id}, register_name='{self.register_name}')>"
+    
+    def to_dict(self):
+        """Convert model instance to dictionary"""
+        return {
+            'id': self.id,
+            'client_id': self.client_id,
+            'factory_number': self.factory_number,
+            'registration_number': self.registration_number,
+            'model': self.model,
+            'register_name': self.register_name,
+            'installation_address': self.installation_address,
+            'fn_number': self.fn_number,
+            'ofd_provider': self.ofd_provider,
+            'ofd_expiry_date': self.ofd_expiry_date.isoformat() if self.ofd_expiry_date else None,
+            'fn_expiry_date': self.fn_expiry_date.isoformat() if self.fn_expiry_date else None,
+            'notes': self.notes,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
 class Deadline(Base):
     """
     Service expiration tracking records
@@ -289,6 +361,7 @@ class Deadline(Base):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True, index=True)
     client_id = Column(Integer, nullable=True, index=True)  # Legacy, will be removed after full migration
     deadline_type_id = Column(Integer, ForeignKey('deadline_types.id', ondelete='RESTRICT'), nullable=False, index=True)
+    cash_register_id = Column(Integer, ForeignKey('cash_registers.id', ondelete='SET NULL'), nullable=True, index=True)
     
     # Deadline Information
     expiration_date = Column(Date, nullable=False, index=True)
@@ -302,6 +375,7 @@ class Deadline(Base):
     # Relationships
     user = relationship("User", back_populates="deadlines")
     deadline_type = relationship("DeadlineType", back_populates="deadlines")
+    cash_register = relationship("CashRegister", back_populates="deadlines")
     notification_logs = relationship("NotificationLog", back_populates="deadline", cascade="all, delete-orphan")
     
     # Composite Indexes
@@ -320,6 +394,7 @@ class Deadline(Base):
             'user_id': self.user_id,
             'client_id': self.client_id,  # Keep for backward compatibility during migration
             'deadline_type_id': self.deadline_type_id,
+            'cash_register_id': self.cash_register_id,
             'expiration_date': self.expiration_date.isoformat() if self.expiration_date else None,
             'status': self.status,
             'notes': self.notes,
@@ -353,23 +428,6 @@ class Deadline(Base):
 # DEPRECATED MODEL: Contact - replaced by User model with role='client'
 # Kept for reference during migration phase
 #
-# class Contact(Base):
-#     Telegram contact information for notification delivery
-#     
-#     Attributes:
-#         id: Unique contact identifier
-#         client_id: Reference to clients.id
-#         telegram_id: Telegram user ID (unique)
-#         telegram_username: Telegram username
-#         first_name: User's first name from Telegram
-#         last_name: User's last name from Telegram
-#         notifications_enabled: Notification preference
-#         registered_at: Registration timestamp
-#         last_interaction: Last bot interaction timestamp
-#
-# End of deprecated Contact model
-
-
 class SupportRequest(Base):
     """
     Client support requests submitted via Telegram bot
@@ -467,6 +525,7 @@ class NotificationLog(Base):
     message_text = Column(Text, nullable=False)
     status = Column(String(20), nullable=False, default='sent', index=True)
     error_message = Column(Text, nullable=True)
+    days_before = Column(Integer, nullable=True)  # Дней до истечения на момент уведомления
     
     # Timestamp
     sent_at = Column(DateTime, nullable=False, server_default=func.now(), index=True)

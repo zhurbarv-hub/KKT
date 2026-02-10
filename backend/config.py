@@ -204,6 +204,13 @@ class Settings(BaseSettings):
         """
         return [origin.strip() for origin in self.cors_origins.split(",")]
     
+    # PostgreSQL connection from DB_* variables
+    db_user: str = Field(default="kkt_user", description="Database user")
+    db_password: str = Field(default="", description="Database password")
+    db_name: str = Field(default="kkt_production", description="Database name")
+    db_host: str = Field(default="localhost", description="Database host")
+    db_port: int = Field(default=5432, description="Database port")
+    
     def get_database_url(self) -> str:
         """
         Получение URL базы данных
@@ -211,10 +218,12 @@ class Settings(BaseSettings):
         Returns:
             str: URL подключения к базе данных
         """
-        # Если DATABASE_URL явно задан в .env, используем его
-        # Иначе формируем из database_path для обратной совместимости
+        # Если DATABASE_URL явно задан, используем его
         if self.database_url and not self.database_url.startswith("sqlite:///database/"):
             return self.database_url
+        # Иначе формируем из DB_* переменных
+        if self.db_password:
+            return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
         return f"sqlite:///{self.database_path}"
     
     @property
@@ -242,6 +251,19 @@ class Settings(BaseSettings):
             for admin_id in self.telegram_admin_ids.split(",") 
             if admin_id.strip()
         ]
+    
+    @property
+    def telegram_admin_id(self) -> int:
+        """
+        Получение ID главного администратора (первый из списка)
+        
+        Returns:
+            int: Telegram ID главного администратора
+        """
+        ids = self.telegram_admin_ids_list
+        if not ids:
+            return 0
+        return ids[0]
     
     @property
     def telegram_manager_ids_list(self) -> List[int]:

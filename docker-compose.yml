@@ -60,11 +60,23 @@ services:
     container_name: kkt-bot
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${DB_USER:-kkt_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-kkt_production}
+      DATABASE_URL: postgresql://${DB_USER:-kkt_user}:${DB_PASSWORD}@172.20.0.1:5432/${DB_NAME:-kkt_production}
       REDIS_URL: redis://redis:6379/1
+      REDIS_HOST: redis
       telegram_bot_token: ${telegram_bot_token}
       telegram_admin_ids: ${telegram_admin_ids}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      WEB_API_BASE_URL: http://172.20.0.1:8000
+      NOTIFICATION_TIMEZONE: Europe/Moscow
+      NOTIFICATION_CHECK_TIME: "09:00"
+      NOTIFICATION_DAYS: "14,7,3"
+      NOTIFICATION_INCLUDE_ADMINS: "true"
+      ADMIN_SUMMARY_ENABLED: "true"
+      BOT_API_USERNAME: ${BOT_API_USERNAME:-bot-service@kkt-system.ru}
+      BOT_API_PASSWORD: ${BOT_API_PASSWORD:-BotService2026Secure}
+    volumes:
+      - ./bot:/app/bot
+      - ./backend:/app/backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,6 +94,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /home/kktapp/kkt-system:/opt/kkt
+      - /home/kktapp/kkt-system/deployment-service/main.py:/app/main.py:ro
     environment:
       INSTALL_DIR: /opt/kkt
       IS_MASTER: ${IS_MASTER:-false}

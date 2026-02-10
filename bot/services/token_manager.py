@@ -108,7 +108,7 @@ class TokenManager:
                 async with session.post(
                     login_url,
                     json={
-                        "username": self.username,
+                        "email": self.username,
                         "password": self.password
                     },
                     timeout=aiohttp.ClientTimeout(total=10)

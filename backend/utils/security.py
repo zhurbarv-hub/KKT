@@ -12,7 +12,7 @@ Functions:
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from backend.config import settings
 
 
@@ -20,8 +20,7 @@ from backend.config import settings
 # Password Hashing Configuration
 # ============================================
 
-# Create password context with bcrypt algorithm
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Using bcrypt directly for password hashing
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -34,15 +33,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     
     Returns:
         bool: True if password matches, False otherwise
-    
-    Example:
-        >>> hashed = get_password_hash("mypassword")
-        >>> verify_password("mypassword", hashed)
-        True
-        >>> verify_password("wrongpassword", hashed)
-        False
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -62,7 +57,7 @@ def get_password_hash(password: str) -> str:
         >>> hashed.startswith("$2b$")
         True
     """
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 # ============================================

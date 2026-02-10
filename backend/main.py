@@ -17,7 +17,7 @@ from backend.config import settings
 from backend.database import check_db_connection
 
 # Import API routers
-from backend.api import auth, users, deadlines, dashboard, deadline_types
+from backend.api import auth, users, deadlines, dashboard, deadline_types, cash_registers, ofd_providers, database
 # Deprecated routers (kept for backward compatibility during migration)
 # from backend.api import clients, contacts
 
@@ -119,6 +119,9 @@ app.include_router(dashboard.router)
 
 # Deadline Types
 app.include_router(deadline_types.router)
+app.include_router(cash_registers.router)
+app.include_router(ofd_providers.router)
+app.include_router(database.router)
 
 # DEPRECATED: Old routers (uncomment if needed for backward compatibility)
 # app.include_router(clients.router)

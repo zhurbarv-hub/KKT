@@ -117,3 +117,9 @@ deployment-wizard/
 *.db
 *.sqlite
 UPGRADE_DOCUMENTATION.md
+*.bak_*
+.env.backup_*
+.env.bak
+.env.docker
+backups/
+web/dist/

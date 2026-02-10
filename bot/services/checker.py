@@ -99,17 +99,24 @@ def _get_expiring_deadlines_fallback(days: int) -> List[Dict]:
         logger.info(f"🔄 Использование fallback (прямые запросы к БД)")
         db: Session = SessionLocal()
         
-        # Запрос с использованием User модели
+        # Запрос с использованием User модели + данные кассы
         query = db.query(
             models.Deadline.id.label('deadline_id'),
             models.User.company_name.label('client_name'),
             models.User.inn.label('client_inn'),
             models.DeadlineType.type_name.label('deadline_type_name'),
-            models.Deadline.expiration_date.label('expiration_date')
+            models.Deadline.expiration_date.label('expiration_date'),
+            models.CashRegister.register_name.label('cash_register_name'),
+            models.CashRegister.model.label('cash_register_model'),
+            models.CashRegister.factory_number.label('factory_number'),
+            models.CashRegister.fn_number.label('fn_number'),
+            models.CashRegister.installation_address.label('installation_address'),
         ).join(
-            models.User, models.Deadline.client_id == models.User.id
+            models.User, models.Deadline.user_id == models.User.id
         ).join(
             models.DeadlineType, models.Deadline.deadline_type_id == models.DeadlineType.id
+        ).outerjoin(
+            models.CashRegister, models.Deadline.cash_register_id == models.CashRegister.id
         ).filter(
             models.Deadline.status == 'active',
             models.User.is_active == True,
@@ -124,10 +131,16 @@ def _get_expiring_deadlines_fallback(days: int) -> List[Dict]:
         for row in results:
             days_remaining = (row.expiration_date - today).days
             
-            # Фильтруем по количеству дней
-            if days_remaining == days:
+            # Фильтруем по диапазонам (чтобы не дублировать между периодами):
+            # days=14: 7 < remaining <= 14
+            # days=7:  3 < remaining <= 7
+            # days=3:  remaining <= 3 (включая просроченные)
+            lower_bound = {14: 7, 7: 3, 3: -9999}.get(days, -9999)
+            if lower_bound < days_remaining <= days:
                 # Определяем статус
-                if days_remaining < 7:
+                if days_remaining <= 0:
+                    status = 'expired'
+                elif days_remaining < 7:
                     status = 'red'
                 elif days_remaining < 14:
                     status = 'yellow'
@@ -141,7 +154,12 @@ def _get_expiring_deadlines_fallback(days: int) -> List[Dict]:
                     'deadline_type_name': row.deadline_type_name,
                     'expiration_date': row.expiration_date,
                     'days_remaining': days_remaining,
-                    'status': status
+                    'status': status,
+                    'cash_register_name': row.cash_register_name,
+                    'cash_register_model': row.cash_register_model,
+                    'factory_number': row.factory_number,
+                    'fn_number': row.fn_number,
+                    'installation_address': row.installation_address,
                 })
             
         logger.info(f"✅ Fallback: найдено {len(deadlines)} дедлайнов")
@@ -211,10 +229,10 @@ def get_notification_recipients(deadline_id: int) -> List[Dict]:
             })
         
         # 3. Добавляем клиента, которому принадлежит дедлайн
-        if deadline.client_id:
+        if deadline.user_id:
             # Получаем пользователя-клиента
             client = db.query(models.User).filter(
-                models.User.id == deadline.client_id,
+                models.User.id == deadline.user_id,
                 models.User.role == 'client',
                 models.User.is_active == True,
                 models.User.notifications_enabled == True,
@@ -229,9 +247,9 @@ def get_notification_recipients(deadline_id: int) -> List[Dict]:
                 })
                 logger.debug(f"Добавлен клиент {client.id} ({client.company_name}) в список получателей")
             else:
-                logger.warning(f"Клиент для дедлайна {deadline_id} (client_id={deadline.client_id}) не найден или не настроен для уведомлений")
+                logger.warning(f"Клиент для дедлайна {deadline_id} (user_id={deadline.user_id}) не найден или не настроен для уведомлений")
         else:
-            logger.warning(f"Дедлайн {deadline_id} не привязан к клиенту (client_id отсутствует)")
+            logger.warning(f"Дедлайн {deadline_id} не привязан к клиенту (user_id отсутствует)")
             
         logger.debug(f"Найдено {len(recipients)} получателей для дедлайна {deadline_id}: "
                     f"{sum(1 for r in recipients if r['recipient_type'] == 'admin')} админов, "
@@ -264,10 +282,11 @@ def check_notification_sent(deadline_id: int, days: int, recipient_id: str) -> b
     try:
         db: Session = SessionLocal()
         
-        # Проверяем наличие записи в логах уведомлений
+        # Проверяем наличие записи в логах уведомлений (с учётом days_before)
         existing_log = db.query(models.NotificationLog).filter(
             models.NotificationLog.deadline_id == deadline_id,
-            models.NotificationLog.recipient_telegram_id == recipient_id
+            models.NotificationLog.recipient_telegram_id == recipient_id,
+            models.NotificationLog.days_before == days
         ).first()
         
         result = existing_log is not None

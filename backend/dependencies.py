@@ -296,10 +296,6 @@ def get_user_filter_params(
     return UserFilterParams(role=role, search=search, active_only=active_only)
 
 
-# DEPRECATED: Use get_user_filter_params instead
-ClientFilterParams = UserFilterParams
-
-
 def get_client_filter_params(
     search: Optional[str] = None,
     active_only: bool = True
@@ -409,41 +405,6 @@ def get_user_or_404(user_id: int, db: Session = Depends(get_db)):
     return user
 
 
-# DEPRECATED: Use get_user_or_404 instead
-def get_client_or_404(client_id: int, db: Session = Depends(get_db)):
-    """
-    DEPRECATED: Use get_user_or_404 instead
-    
-    Get user (client) by ID or raise 404
-    Kept for backward compatibility
-    
-    Args:
-        client_id: User ID to fetch (legacy parameter name)
-        db: Database session
-    
-    Returns:
-        User: User object with role='client'
-    
-    Raises:
-        HTTPException: 404 if user not found or not a client
-    """
-    user = db.query(User).filter(User.id == client_id).first()
-    
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Клиент с ID {client_id} не найден"
-        )
-    
-    if not user.is_client:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Пользователь с ID {client_id} не является клиентом (роль: {user.role})"
-        )
-    
-    return user
-
-
 def get_deadline_or_404(deadline_id: int, db: Session = Depends(get_db)):
     """
     Get deadline by ID or raise 404
@@ -490,8 +451,6 @@ if __name__ == "__main__":
     print("  • get_deadline_filter_params - Фильтры для списка дедлайнов")
     print("  • get_user_or_404 - Получение пользователя или 404")
     print("  • get_deadline_or_404 - Получение дедлайна или 404")
-    print("  • [DEPRECATED] get_client_filter_params - Используйте get_user_filter_params")
-    print("  • [DEPRECATED] get_client_or_404 - Используйте get_user_or_404")
     
     print("\n" + "=" * 60)
     print("✅ МОДУЛЬ ГОТОВ К ИСПОЛЬЗОВАНИЮ")
