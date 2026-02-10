@@ -206,6 +206,34 @@ async def startup_event():
         except Exception as e:
             logger.error(f"✗ Database init error: {e}")
         
+        # Seed system deadline types (required for auto-deadline creation)
+        try:
+            from backend.models import DeadlineType
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                SYSTEM_TYPES = [
+                    {"id": 6, "type_name": "Замена ФН", "is_system": True, "is_active": True},
+                    {"id": 7, "type_name": "Продление договора ОФД", "is_system": True, "is_active": True},
+                ]
+                created = False
+                for st in SYSTEM_TYPES:
+                    existing = db.query(DeadlineType).filter(DeadlineType.id == st["id"]).first()
+                    if not existing:
+                        dt = DeadlineType(**st)
+                        db.add(dt)
+                        created = True
+                        logger.info(f"✓ Created system deadline type: {st['type_name']} (id={st['id']})")
+                if created:
+                    db.commit()
+                    # Advance sequence past seeded IDs to avoid conflicts
+                    db.execute(text("SELECT setval('deadline_types_id_seq', GREATEST((SELECT MAX(id) FROM deadline_types), 7))"))
+                    db.commit()
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"✗ Deadline types seed error: {e}")
+        
 
     else:
         logger.error("✗ Database connection failed")
