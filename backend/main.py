@@ -234,6 +234,38 @@ async def startup_event():
         except Exception as e:
             logger.error(f"✗ Deadline types seed error: {e}")
         
+        # Seed OFD providers if none exist
+        try:
+            from backend.models import OFDProvider
+            db = SessionLocal()
+            try:
+                if db.query(OFDProvider).count() == 0:
+                    providers = [
+                        {"name": "Первый ОФД", "website": "https://1-ofd.ru", "support_phone": "+7 (800) 700-11-11", "support_email": "support@1-ofd.ru", "is_active": True},
+                        {"name": "Такском", "website": "https://ofd.ru", "support_phone": "+7 (495) 249-67-00", "support_email": "info@ofd.ru", "is_active": True},
+                        {"name": "Платформа ОФД", "website": "https://platformaofd.ru", "support_phone": "+7 (800) 100-14-09", "support_email": "info@platformaofd.ru", "is_active": True},
+                        {"name": "ОФД-Я", "website": "https://sbis.ru", "support_phone": "+7 (800) 333-00-00", "support_email": "ofd@sbis.ru", "is_active": True},
+                        {"name": "OFD.ru", "website": "https://ofd.sbis.ru", "support_phone": "+7 (495) 532-31-01", "support_email": "support@sbis.ru", "is_active": True},
+                        {"name": "Яндекс.ОФД", "website": "https://ofd.taxcom.ru", "support_phone": "+7 (495) 120-17-17", "support_email": "support@taxcom.ru", "is_active": True},
+                        {"name": "Астрал.ОФД", "website": "https://ofd.astralnalog.ru", "support_phone": "+7 (800) 700-15-21", "support_email": "support@astralnalog.ru", "is_active": True},
+                        {"name": "СБИС ОФД", "website": "https://ofd.yarus.ru", "support_phone": "+7 (800) 250-07-39", "support_email": "support@yarus.ru", "is_active": True},
+                        {"name": "Контур.ОФД", "website": "https://ofd.platformaofd.ru", "support_phone": "+7 (800) 500-80-05", "support_email": "support@platformaofd.ru", "is_active": True},
+                        {"name": "Магнит ОФД", "website": "https://ofd.evotor.ru", "support_phone": "+7 (800) 333-11-12", "support_email": "support@evotor.ru", "is_active": True},
+                        {"name": "ИнитПро ОФД", "website": "https://1-ofd.ru", "support_phone": "+7 (800) 707-77-99", "support_email": "support@1-ofd.ru", "is_active": True},
+                        {"name": "e-OFD", "website": "https://ofd.ru", "support_phone": "+7 (495) 540-46-29", "support_email": "support@ofd.ru", "is_active": True},
+                        {"name": "Билайн.ОФД", "website": "https://dreamkas.ru", "support_phone": "+7 (495) 960-14-54", "support_email": "support@dreamkas.ru", "is_active": True},
+                        {"name": "Информцентр ОФД", "website": "https://komtehofd.ru", "support_phone": "+7 (495) 797-43-32", "support_email": "support@komtehofd.ru", "is_active": True},
+                        {"name": "Контур НТТ", "website": "https://ntt.kontur.ru", "support_phone": "8-800-100-49-13", "support_email": "", "is_active": True},
+                    ]
+                    for p in providers:
+                        db.add(OFDProvider(**p))
+                    db.commit()
+                    logger.info(f"✓ Seeded {len(providers)} OFD providers")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"✗ OFD providers seed error: {e}")
+        
 
     else:
         logger.error("✗ Database connection failed")
