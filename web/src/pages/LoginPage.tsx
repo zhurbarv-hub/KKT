@@ -1,14 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { Lock, User, AlertCircle, Loader2 } from "lucide-react";
+import { setupApi } from "../services/api";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const { login, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
+  const [companyName, setCompanyName] = useState("KKT System");
+
+  useEffect(() => {
+    setupApi.getSettings().then((s) => setCompanyName(s.company_name)).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -28,9 +34,9 @@ export default function LoginPage() {
         <div className="rounded-3xl shadow-2xl overflow-hidden" style={{ background: "white" }}>
           <div className="px-8 py-10 text-center" style={{ background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)" }}>
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 shadow-lg mb-4">
-              <span className="text-white font-bold text-2xl">R</span>
+              <span className="text-white font-bold text-2xl">{companyName.charAt(0).toUpperCase()}</span>
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Релабс Центр</h1>
+            <h1 className="text-3xl font-bold text-white tracking-tight">{companyName}</h1>
             <p className="mt-2 text-white/80">Система управления дедлайнами ККТ</p>
           </div>
 
@@ -93,7 +99,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center mt-6 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>© 2026 Релабс Центр</p>
+        <p className="text-center mt-6 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>{companyName}</p>
       </div>
     </div>
   );

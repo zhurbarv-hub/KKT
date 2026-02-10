@@ -5,8 +5,9 @@ import {
   LayoutDashboard, Users, Clock, Tag, UserCog, Download,
   HelpCircle, Database, LogOut, Menu, X, Sun, Moon, Cloud,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import clsx from "clsx";
+import { setupApi } from "../../services/api";
 
 interface NavItemProps {
   to: string;
@@ -40,6 +41,11 @@ export default function Sidebar() {
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [companyName, setCompanyName] = useState("KKT System");
+
+  useEffect(() => {
+    setupApi.getSettings().then((s) => setCompanyName(s.company_name)).catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -87,10 +93,10 @@ export default function Sidebar() {
         <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-glow">
-              <span className="text-white font-bold text-lg">R</span>
+              <span className="text-white font-bold text-lg">{companyName.charAt(0).toUpperCase()}</span>
             </div>
             <div>
-              <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Релабс Центр</h2>
+              <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>{companyName}</h2>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>Панель управления</p>
             </div>
           </div>

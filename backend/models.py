@@ -552,3 +552,14 @@ class NotificationLog(Base):
             'error_message': self.error_message,
             'sent_at': self.sent_at.isoformat() if self.sent_at else None
         }
+
+
+class SystemSettings(Base):
+    """Key-value system settings"""
+    __tablename__ = "system_settings"
+    
+    key = Column(String(100), primary_key=True)
+    value = Column(String(500), nullable=False, default="")
+    
+    def __repr__(self):
+        return f"<SystemSettings(key='{self.key}', value='{self.value}')>"

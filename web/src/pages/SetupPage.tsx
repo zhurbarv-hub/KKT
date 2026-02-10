@@ -1,10 +1,11 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, Mail, Lock, User, AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { Shield, Mail, Lock, User, Building2, AlertCircle, Loader2, CheckCircle } from "lucide-react";
 import { setupApi } from "../services/api";
 
 export default function SetupPage() {
+  const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -29,7 +30,12 @@ export default function SetupPage() {
 
     setIsLoading(true);
     try {
-      await setupApi.createAdmin({ email, password, full_name: fullName });
+      await setupApi.createAdmin({
+        email,
+        password,
+        full_name: fullName,
+        company_name: companyName || undefined,
+      });
       setSuccess(true);
       setTimeout(() => navigate("/login"), 2000);
     } catch (err: any) {
@@ -39,6 +45,10 @@ export default function SetupPage() {
       setIsLoading(false);
     }
   };
+
+  const inputStyle = { background: "#f3f4f6", border: "2px solid #e5e7eb", color: "#111827" };
+  const onFocus = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "#7c3aed"; e.target.style.background = "#fff"; };
+  const onBlur = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "#e5e7eb"; e.target.style.background = "#f3f4f6"; };
 
   if (success) {
     return (
@@ -75,86 +85,59 @@ export default function SetupPage() {
               <Shield className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-white tracking-tight">Первоначальная настройка</h1>
-            <p className="mt-2 text-white/80">Создайте аккаунт администратора системы</p>
+            <p className="mt-2 text-white/80">Настройте систему и создайте администратора</p>
           </div>
 
           <form onSubmit={handleSubmit} className="px-8 py-8 space-y-5" style={{ background: "white" }}>
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>ФИО</label>
+              <label htmlFor="companyName" className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>Название компании</label>
+              <div className="relative">
+                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#9ca3af" }} />
+                <input id="companyName" type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)}
+                  className="w-full px-4 py-3 pl-12 rounded-xl outline-none transition-all" style={inputStyle}
+                  onFocus={onFocus} onBlur={onBlur} placeholder="Моя компания" />
+              </div>
+            </div>
+
+            <hr style={{ borderColor: "#e5e7eb" }} />
+
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>ФИО администратора *</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#9ca3af" }} />
-                <input
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-4 py-3 pl-12 rounded-xl outline-none transition-all"
-                  style={{ background: "#f3f4f6", border: "2px solid #e5e7eb", color: "#111827" }}
-                  onFocus={(e) => { e.target.style.borderColor = "#7c3aed"; e.target.style.background = "#fff"; }}
-                  onBlur={(e) => { e.target.style.borderColor = "#e5e7eb"; e.target.style.background = "#f3f4f6"; }}
-                  placeholder="Иванов Иван Иванович"
-                  required
-                  minLength={2}
-                />
+                <input id="fullName" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)}
+                  className="w-full px-4 py-3 pl-12 rounded-xl outline-none transition-all" style={inputStyle}
+                  onFocus={onFocus} onBlur={onBlur} placeholder="Иванов Иван Иванович" required minLength={2} />
               </div>
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>Email</label>
+              <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>Email *</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#9ca3af" }} />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 pl-12 rounded-xl outline-none transition-all"
-                  style={{ background: "#f3f4f6", border: "2px solid #e5e7eb", color: "#111827" }}
-                  onFocus={(e) => { e.target.style.borderColor = "#7c3aed"; e.target.style.background = "#fff"; }}
-                  onBlur={(e) => { e.target.style.borderColor = "#e5e7eb"; e.target.style.background = "#f3f4f6"; }}
-                  placeholder="admin@company.ru"
-                  required
-                />
+                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 pl-12 rounded-xl outline-none transition-all" style={inputStyle}
+                  onFocus={onFocus} onBlur={onBlur} placeholder="admin@company.ru" required />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>Пароль</label>
+              <label htmlFor="password" className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>Пароль *</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#9ca3af" }} />
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 pl-12 rounded-xl outline-none transition-all"
-                  style={{ background: "#f3f4f6", border: "2px solid #e5e7eb", color: "#111827" }}
-                  onFocus={(e) => { e.target.style.borderColor = "#7c3aed"; e.target.style.background = "#fff"; }}
-                  onBlur={(e) => { e.target.style.borderColor = "#e5e7eb"; e.target.style.background = "#f3f4f6"; }}
-                  placeholder="Минимум 6 символов"
-                  required
-                  minLength={6}
-                />
+                <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 pl-12 rounded-xl outline-none transition-all" style={inputStyle}
+                  onFocus={onFocus} onBlur={onBlur} placeholder="Минимум 6 символов" required minLength={6} />
               </div>
             </div>
 
             <div>
-              <label htmlFor="passwordConfirm" className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>Подтверждение пароля</label>
+              <label htmlFor="passwordConfirm" className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>Подтверждение пароля *</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#9ca3af" }} />
-                <input
-                  id="passwordConfirm"
-                  type="password"
-                  value={passwordConfirm}
-                  onChange={(e) => setPasswordConfirm(e.target.value)}
-                  className="w-full px-4 py-3 pl-12 rounded-xl outline-none transition-all"
-                  style={{ background: "#f3f4f6", border: "2px solid #e5e7eb", color: "#111827" }}
-                  onFocus={(e) => { e.target.style.borderColor = "#7c3aed"; e.target.style.background = "#fff"; }}
-                  onBlur={(e) => { e.target.style.borderColor = "#e5e7eb"; e.target.style.background = "#f3f4f6"; }}
-                  placeholder="Повторите пароль"
-                  required
-                  minLength={6}
-                />
+                <input id="passwordConfirm" type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)}
+                  className="w-full px-4 py-3 pl-12 rounded-xl outline-none transition-all" style={inputStyle}
+                  onFocus={onFocus} onBlur={onBlur} placeholder="Повторите пароль" required minLength={6} />
               </div>
             </div>
 
@@ -165,13 +148,10 @@ export default function SetupPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isLoading}
+            <button type="submit" disabled={isLoading}
               className="w-full py-3.5 px-4 font-semibold rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.98]"
-              style={{ background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)", color: "white" }}
-            >
-              {isLoading ? (<><Loader2 className="h-5 w-5 animate-spin" /><span>Создание...</span></>) : <span>Создать администратора</span>}
+              style={{ background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)", color: "white" }}>
+              {isLoading ? (<><Loader2 className="h-5 w-5 animate-spin" /><span>Создание...</span></>) : <span>Настроить систему</span>}
             </button>
           </form>
         </div>
