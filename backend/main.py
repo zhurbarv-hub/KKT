@@ -14,7 +14,7 @@ import logging
 import os
 
 from backend.config import settings
-from backend.database import check_db_connection
+from backend.database import check_db_connection, init_db, SessionLocal
 
 # Import API routers
 from backend.api import auth, users, deadlines, dashboard, deadline_types, cash_registers, ofd_providers, database
@@ -183,7 +183,8 @@ async def health_check():
 @app.on_event("startup")
 async def startup_event():
     """
-    Startup event - runs when application starts
+    Startup event - runs when application starts.
+    Auto-creates tables and default admin on first run.
     """
     logger.info("=" * 60)
     logger.info("KKT SERVICES API STARTING")
@@ -196,10 +197,43 @@ async def startup_event():
     # Check database connection
     if check_db_connection():
         logger.info("✓ Database connection successful")
+        
+        # Auto-create tables if they don't exist
+        try:
+            init_db()
+            logger.info("✓ Database tables verified")
+        except Exception as e:
+            logger.error(f"✗ Database init error: {e}")
+        
+        # Create default admin if no users exist
+        try:
+            from backend.models import User
+            from backend.utils.security import get_password_hash
+            db = SessionLocal()
+            try:
+                user_count = db.query(User).count()
+                if user_count == 0:
+                    admin = User(
+                        username="admin",
+                        email="admin@kkt.local",
+                        password_hash=get_password_hash("admin123"),
+                        full_name="Администратор",
+                        role="admin",
+                        is_active=True,
+                    )
+                    db.add(admin)
+                    db.commit()
+                    logger.info("✓ Default admin created: admin@kkt.local / admin123")
+                    logger.warning("⚠ CHANGE DEFAULT PASSWORD AFTER FIRST LOGIN!")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"✗ Admin creation error: {e}")
     else:
         logger.error("✗ Database connection failed")
     
     logger.info("=" * 60)
+
 
 
 @app.on_event("shutdown")
