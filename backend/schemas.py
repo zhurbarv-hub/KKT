@@ -79,7 +79,7 @@ class UserBase(BaseModel):
     def validate_role(cls, v):
         """Validate role values"""
         if v not in ['client', 'manager', 'admin']:
-            raise ValueError("Role must be one of: client, manager, admin")
+            raise ValueError("Роль должна быть: client, manager или admin")
         return v
     
     @validator('inn')
@@ -88,15 +88,15 @@ class UserBase(BaseModel):
         if v is None:
             # INN is required for clients
             if values.get('role') == 'client':
-                raise ValueError('INN is required for client users')
+                raise ValueError('ИНН обязателен для клиентов')
             return v
         
         # Validate INN format
         v = v.strip()
         if not v.isdigit():
-            raise ValueError('INN must contain only digits')
+            raise ValueError('ИНН должен содержать только цифры')
         if len(v) not in [10, 12]:
-            raise ValueError('INN must be exactly 10 or 12 digits')
+            raise ValueError('ИНН должен содержать 10 или 12 цифр')
         return v
     
     @validator('phone')
@@ -112,7 +112,7 @@ class UserBase(BaseModel):
         elif re.match(r'^\+7\d{10}$', v):
             pass
         else:
-            raise ValueError('Phone must be in format: +7XXXXXXXXXX or 8XXXXXXXXXX')
+            raise ValueError('Телефон должен быть в формате: +7XXXXXXXXXX или 8XXXXXXXXXX')
         return v
     
     @validator('notification_days')
@@ -121,14 +121,14 @@ class UserBase(BaseModel):
         try:
             days = [int(day.strip()) for day in v.split(',') if day.strip()]
             if not days:
-                raise ValueError('At least one notification day is required')
+                raise ValueError('Укажите хотя бы один день уведомления')
             if any(day < 1 or day > 365 for day in days):
-                raise ValueError('Notification days must be between 1 and 365')
+                raise ValueError('Дни уведомлений должны быть от 1 до 365')
             # Sort descending and remove duplicates
             return ','.join(map(str, sorted(set(days), reverse=True)))
         except ValueError as e:
             if 'invalid literal' in str(e):
-                raise ValueError('Invalid format. Use comma-separated numbers: "30,14,7,3"')
+                raise ValueError('Неверный формат. Используйте числа через запятую: "30,14,7,3"')
             raise
 
 
@@ -146,7 +146,7 @@ class UserCreate(UserBase):
         """Password required for managers/admins, optional for clients"""
         role = values.get('role')
         if role in ['manager', 'admin'] and not v:
-            raise ValueError('Password is required for manager and admin users')
+            raise ValueError('Пароль обязателен для менеджеров и администраторов')
         return v
 
 
@@ -180,7 +180,7 @@ class UserUpdate(BaseModel):
     @validator('role')
     def validate_role(cls, v):
         if v is not None and v not in ['client', 'manager', 'admin']:
-            raise ValueError("Role must be one of: client, manager, admin")
+            raise ValueError("Роль должна быть: client, manager или admin")
         return v
     
     @validator('inn')
@@ -189,9 +189,9 @@ class UserUpdate(BaseModel):
             return v
         v = v.strip()
         if not v.isdigit():
-            raise ValueError('INN must contain only digits')
+            raise ValueError('ИНН должен содержать только цифры')
         if len(v) not in [10, 12]:
-            raise ValueError('INN must be exactly 10 or 12 digits')
+            raise ValueError('ИНН должен содержать 10 или 12 цифр')
         return v
     
     @validator('phone')
@@ -206,7 +206,7 @@ class UserUpdate(BaseModel):
         elif re.match(r'^\+7\d{10}$', v):
             pass
         else:
-            raise ValueError('Phone must be in format: +7XXXXXXXXXX or 8XXXXXXXXXX')
+            raise ValueError('Телефон должен быть в формате: +7XXXXXXXXXX или 8XXXXXXXXXX')
         return v
     
     @validator('notification_days')
@@ -216,13 +216,13 @@ class UserUpdate(BaseModel):
         try:
             days = [int(day.strip()) for day in v.split(',') if day.strip()]
             if not days:
-                raise ValueError('At least one notification day is required')
+                raise ValueError('Укажите хотя бы один день уведомления')
             if any(day < 1 or day > 365 for day in days):
-                raise ValueError('Notification days must be between 1 and 365')
+                raise ValueError('Дни уведомлений должны быть от 1 до 365')
             return ','.join(map(str, sorted(set(days), reverse=True)))
         except ValueError as e:
             if 'invalid literal' in str(e):
-                raise ValueError('Invalid format. Use comma-separated numbers: "30,14,7,3"')
+                raise ValueError('Неверный формат. Используйте числа через запятую: "30,14,7,3"')
             raise
 
 
@@ -354,7 +354,7 @@ class DeadlineUpdate(BaseModel):
     def validate_status(cls, v):
         """Validate status values"""
         if v is not None and v not in ['active', 'expired', 'renewed']:
-            raise ValueError("Status must be one of: active, expired, renewed")
+            raise ValueError("Статус должен быть: active, expired или renewed")
         return v
 
 
@@ -468,7 +468,7 @@ class ErrorResponse(BaseModel):
                     "details": [
                         {
                             "field": "inn",
-                            "message": "INN must be exactly 10 or 12 digits"
+                            "message": "ИНН должен содержать 10 или 12 цифр"
                         }
                     ]
                 }
