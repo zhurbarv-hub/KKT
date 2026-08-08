@@ -28,6 +28,7 @@ from backend.config import settings
 from bot.services.token_manager import TokenManager
 from bot.services.api_client import WebAPIClient
 from bot.services import checker
+from bot.services.integrity import enforce_bot_integrity
 
 # Настройка логирования
 logging.basicConfig(
@@ -231,6 +232,12 @@ async def main():
         logger.info("✅ Бот готов к работе! Нажмите Ctrl+C для остановки")
         logger.info("=" * 60)
         
+        # Проверка целостности настроек бота в Telegram.
+        # Если токен утёк, злоумышленник может поставить свой webhook и увести
+        # весь трафик пользователей — тогда polling ниже просто не получит
+        # ни одного апдейта. Сверяем и восстанавливаем ДО запуска polling.
+        await enforce_bot_integrity(bot, bot_config.telegram_admin_ids_list)
+
         # Запуск polling
         await dp.start_polling(
             bot,

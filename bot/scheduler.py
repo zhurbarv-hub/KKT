@@ -6,11 +6,13 @@ import logging
 from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from aiogram import Bot
 from sqlalchemy.orm import Session
 
 from bot.services.notifier import process_deadline_notifications
 from bot.services.api_client import WebAPIClient
+from bot.services.integrity import enforce_bot_integrity
 from bot.services.exceptions import APIError, ConnectionError as APIConnectionError
 from backend.config import settings
 
@@ -216,6 +218,20 @@ async def send_admin_daily_summary(bot: Bot, db_session: Session):
         logger.error(traceback.format_exc())
 
 
+async def integrity_watchdog(bot: Bot):
+    """
+    Периодическая проверка целостности настроек бота в Telegram.
+
+    Ловит ситуацию, когда посторонний со знанием токена ставит свой webhook
+    (перехват всех сообщений) или подменяет имя/описание/меню команд бота.
+    Восстанавливает эталон и уведомляет администраторов.
+    """
+    try:
+        await enforce_bot_integrity(bot, settings.telegram_admin_ids_list)
+    except Exception as exc:
+        logger.error(f"❌ Ошибка контроля целостности настроек бота: {exc}")
+
+
 def setup_scheduler(bot: Bot, db_session: Session, api_client: WebAPIClient = None) -> AsyncIOScheduler:
     """
     Настройка и запуск планировщика задач
@@ -275,6 +291,20 @@ def setup_scheduler(bot: Bot, db_session: Session, api_client: WebAPIClient = No
         )
         logger.info("📊 Ежедневная сводка включена: отправка каждый день в 09:00 ({settings.notification_timezone})")
     
+    # Периодический контроль целостности настроек бота (защита от угона токена).
+    # Проверяет, не подменил ли кто-то извне webhook / имя / меню команд,
+    # и восстанавливает эталон с алертом администраторам.
+    scheduler.add_job(
+        integrity_watchdog,
+        trigger=IntervalTrigger(minutes=15),
+        args=[bot],
+        id='bot_integrity_check',
+        name='Контроль целостности настроек бота',
+        replace_existing=True,
+        misfire_grace_time=300
+    )
+    logger.info("🔒 Контроль целостности настроек бота: каждые 15 минут")
+
     logger.info(
         f"📅 Планировщик настроен: проверка каждый день в {settings.notification_check_time} "
         f"({settings.notification_timezone})"
