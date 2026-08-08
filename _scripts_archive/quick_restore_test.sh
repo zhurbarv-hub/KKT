@@ -22,7 +22,7 @@ echo ""
 echo "🔄 Запуск оптимизированного восстановления..."
 START=$(date +%s)
 
-PGPASSWORD="KKT2024SecurePass" psql \
+PGPASSWORD="<DB_PASSWORD из .env>" psql \
     -h localhost \
     -p 5432 \
     -U kkt_user \

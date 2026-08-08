@@ -198,7 +198,7 @@ backend/
 ```bash
 # База данных
 DB_USER=kkt_user
-DB_PASSWORD=KKT2024SecurePass
+DB_PASSWORD=<DB_PASSWORD из .env>
 DB_NAME=kkt_production
 DB_HOST=localhost
 DB_PORT=5432
@@ -217,7 +217,7 @@ CORS_ORIGINS=https://kkt-box.net,http://localhost:3000
 
 # Бот
 BOT_API_USERNAME=bot-service@kkt-system.ru
-BOT_API_PASSWORD=BotService2026Secure
+BOT_API_PASSWORD=<BOT_API_PASSWORD из .env>
 
 # Web API для бота (Docker bridge IP)
 WEB_API_BASE_URL=http://172.20.0.1:8000
@@ -351,7 +351,7 @@ docker logs -f kkt-bot  # Логи
 - **Хост:** localhost:5432
 - **БД:** kkt_production
 - **Пользователь:** kkt_user
-- **Пароль:** KKT2024SecurePass
+- **Пароль:** <DB_PASSWORD из .env>
 
 ### Модели (8 таблиц)
 
@@ -723,7 +723,7 @@ cd /home/kktapp/kkt-system && docker stop kkt-bot && docker rm kkt-bot && docker
 docker ps
 
 # Подключение к БД
-PGPASSWORD=KKT2024SecurePass psql -U kkt_user -d kkt_production -h localhost
+PGPASSWORD=<DB_PASSWORD из .env> psql -U kkt_user -d kkt_production -h localhost
 
 # Создание бекапа вручную
 /home/kktapp/backup-database.sh

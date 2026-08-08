@@ -73,7 +73,7 @@ services:
       NOTIFICATION_INCLUDE_ADMINS: "true"
       ADMIN_SUMMARY_ENABLED: "true"
       BOT_API_USERNAME: ${BOT_API_USERNAME:-bot-service@kkt-system.ru}
-      BOT_API_PASSWORD: ${BOT_API_PASSWORD:-BotService2026Secure}
+      BOT_API_PASSWORD: ${BOT_API_PASSWORD:?BOT_API_PASSWORD не задан в .env}
     volumes:
       - ./bot:/app/bot
       - ./backend:/app/backend

@@ -17,7 +17,7 @@
 - Код полностью изолирован
 
 ### 3. Настроен тестовый .env
-- Test bot token: `7712857866:AAGf8cYSNjl4SpFfNu29jtRbI0L0PF8nR48`
+- Test bot token: `<TEST_BOT_TOKEN>`
 - Database: `kkt_test_instance`
 - API Port: `8200`
 - WEB_API_BASE_URL: `http://localhost:8200`
