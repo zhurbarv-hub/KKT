@@ -1001,13 +1001,13 @@ systemctl stop kkt-web && systemctl disable kkt-web
 
 ## Ротация пароля БД 08.08.2026 и подводный камень с systemd
 
-Пароль `kkt_user` ротирован (старый `KKT2024SecurePass` лежал в публичном репо).
+Пароль `kkt_user` ротирован (старый `<старый пароль, ротирован>` лежал в публичном репо).
 Обновлены: PostgreSQL (`ALTER USER`), `.env` (`DB_PASSWORD` + `DATABASE_URL`),
 `/home/kktapp/backup-database.sh` (`PGPASSWORD`).
 Бэкапы: `.env.backup_<timestamp>`, `backup-database.sh.bak_<timestamp>`.
 
 ⚠️ **Подводный камень:** в `kkt-backend.service` пароль БД был **захардкожен**
-строкой `Environment=DATABASE_URL=postgresql://kkt_user:KKT2024SecurePass@...`,
+строкой `Environment=DATABASE_URL=postgresql://kkt_user:<старый пароль, ротирован>@...`,
 которая **перебивала `.env`**. После ротации API отдавал 500
 (`password authentication failed for user "kkt_user"`), хотя `.env` был корректен.
 

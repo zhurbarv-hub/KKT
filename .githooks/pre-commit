@@ -52,7 +52,19 @@ if [ -n "$SECRET_LINES" ]; then
     printf '%s\n' "$SECRET_LINES" | head -10 | sed -E 's/([=:][[:space:]]*"?.{0,4}).*/\1***** (замаскировано)/' >&2
 fi
 
-# --- 4. Приватные ключи --------------------------------------------------------
+# --- 4. Пароль внутри строки подключения ---------------------------------------
+# postgresql://user:<пароль>@host, redis://, amqp://, mongodb:// и т.п.
+# Такие пароли не ловятся проверкой №3, т.к. рядом нет слова "password".
+URL_HITS=$(git diff --cached -U0 -- $(printf '%s\n' "$FILES" | tr '\n' ' ') 2>/dev/null \
+    | grep -E '^\+' | grep -vE '^\+\+\+' \
+    | grep -oE '[a-z][a-z0-9+.-]*://[A-Za-z0-9_.-]+:[^@/[:space:]"'"'"']{6,}@' \
+    | grep -viE ':(your_|change_?me|changeme|example|placeholder|xxx|\*\*\*|dummy|sample|password|pass|secret|<|\$\{)')
+if [ -n "$URL_HITS" ]; then
+    fail "в коммите найден пароль внутри строки подключения:"
+    printf '%s\n' "$URL_HITS" | sed -E 's|(://[^:]+:.{0,3}).*|\1***** (замаскировано)|' >&2
+fi
+
+# --- 5. Приватные ключи --------------------------------------------------------
 KEY_HITS=$(git diff --cached -U0 -- $(printf '%s\n' "$FILES" | tr '\n' ' ') 2>/dev/null \
     | grep -E '^\+' | grep -cE 'BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY')
 if [ "${KEY_HITS:-0}" -gt 0 ]; then
